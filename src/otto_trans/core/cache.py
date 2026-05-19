@@ -1,6 +1,7 @@
 import sqlite3
 import base64
 import atexit
+from pathlib import Path
 
 def b64encode(s: str) -> str:
     return base64.b64encode(s.encode(encoding="utf-8")).decode(encoding="utf-8")
@@ -17,11 +18,12 @@ class Cache:
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    def __init__(self, db_path: str):
+    def __init__(self):
         if self._initialized:
             return
-        self.db_path = db_path
-        self._conn = sqlite3.connect(db_path)
+        self.db_path = Path.home() / ".cache" / "otto-trans" / "cache.db"
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._conn = sqlite3.connect(str(self.db_path))
         self._initialized = True
         atexit.register(self._conn.close)
 
@@ -30,7 +32,14 @@ class Cache:
 
     def query(self, key: str, engine: str) -> str | None:
         cursor = self._conn.cursor()
-        cursor.execute(f"SELECT target FROM [{b64encode(engine)}] WHERE source = ?", (b64encode(key),))
+        table = b64encode(engine)
+        try:
+            cursor.execute(
+                f"SELECT target FROM [{table}] WHERE source = ?",
+                (b64encode(key),)
+            )
+        except sqlite3.OperationalError:
+            return None          # 表不存在 = 无缓存
         result = cursor.fetchone()
         return b64decode(result[0]) if result else None
 

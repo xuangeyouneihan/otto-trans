@@ -1,3 +1,3 @@
-from .base import BaseTranslator
+from .base import BaseTranslator, UnsupportedLanguageError
 
-__all__ = ["BaseTranslator"]
+__all__ = ["BaseTranslator", "UnsupportedLanguageError"]

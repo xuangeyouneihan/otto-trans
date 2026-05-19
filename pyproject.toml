@@ -8,12 +8,11 @@ dependencies = [
     "httpx>=0.28.1",
     "pydantic-settings>=2.14.1",
     "pyyaml>=6.0.3",
-    "rich>=15.0.0",
     "typer>=0.25.1",
 ]
 
 [project.scripts]
-otto = "otto_trans.cli:main"
+otto = "otto_trans.cli:app"
 
 [build-system]
 requires = ["hatchling"]
@@ -21,6 +20,7 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
+    "isort>=8.0.1",
     "pytest>=9.0.3",
     "pytest-asyncio>=1.3.0",
     "pytest-mock>=3.15.1",

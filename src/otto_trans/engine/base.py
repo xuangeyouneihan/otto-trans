@@ -1,6 +1,16 @@
 from abc import ABC, abstractmethod
 import asyncio
 
+class UnsupportedLanguageError(Exception):
+    """引擎不支持的语言代码"""
+    
+    @classmethod
+    def for_engine(cls, engine_name: str, code: str, available: list[str]) -> "UnsupportedLanguageError":
+        return cls(
+            f"当前翻译引擎（{engine_name}）不支持指定的语言 '{code}'。\n"
+            f"可用的语言如下：{', '.join(sorted(available))}"
+        )
+
 class BaseTranslator(ABC):
     @property
     @abstractmethod

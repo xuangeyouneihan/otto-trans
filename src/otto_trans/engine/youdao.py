@@ -1,4 +1,4 @@
-from .base import BaseTranslator
+from .base import BaseTranslator, UnsupportedLanguageError
 import httpx
 import uuid
 import hashlib
@@ -10,6 +10,50 @@ class YoudaoAPIError(Exception):
 
 class YoudaoTranslator(BaseTranslator):
     youdao_url = "https://openapi.youdao.com/v2/api"
+
+    # 标准语言代码 → 有道 API 代码（同时用于校验）
+    _LANG_MAP: dict[str, str] = {
+        # === 非直通映射（key != value） ===
+        "zh-hans": "zh-CHS",   # BCP47 → 有道
+        "zh-hant": "zh-CHT",
+        "jv": "jw",
+        "zh-chs": "zh-CHS",    # 有道代码自映射（兼容直接传参）
+        "zh-cht": "zh-CHT",
+        "jw": "jw",
+        "zh": "zh-CHS",        # 常见别名
+        "sr-cyrl": "sr-Cyrl",  # 大小写修正
+        "sr-latn": "sr-Latn",
+        # === 直通（key == value，以下全部原样） ===
+        "en": "en", "ja": "ja", "ko": "ko", "fr": "fr",
+        "es": "es", "pt": "pt", "it": "it", "ru": "ru",
+        "vi": "vi", "de": "de", "ar": "ar", "id": "id",
+        "th": "th", "af": "af", "bs": "bs", "bg": "bg",
+        "yue": "yue", "ca": "ca", "hr": "hr", "cs": "cs",
+        "da": "da", "nl": "nl", "et": "et", "fj": "fj",
+        "fi": "fi", "el": "el", "ht": "ht", "he": "he",
+        "hi": "hi", "mww": "mww", "hu": "hu", "sw": "sw",
+        "tlh": "tlh", "lv": "lv", "lt": "lt", "ms": "ms",
+        "mt": "mt", "no": "no", "fa": "fa", "pl": "pl",
+        "otq": "otq", "ro": "ro", "sk": "sk", "sl": "sl",
+        "sv": "sv", "ty": "ty", "to": "to", "tr": "tr",
+        "uk": "uk", "ur": "ur", "cy": "cy", "yua": "yua",
+        "sq": "sq", "am": "am", "hy": "hy", "az": "az",
+        "bn": "bn", "eu": "eu", "be": "be", "ceb": "ceb",
+        "co": "co", "eo": "eo", "tl": "tl", "fy": "fy",
+        "gl": "gl", "ka": "ka", "gu": "gu", "ha": "ha",
+        "haw": "haw", "is": "is", "ig": "ig", "ga": "ga",
+        "kn": "kn", "kk": "kk", "km": "km", "ku": "ku",
+        "ky": "ky", "lo": "lo", "la": "la", "lb": "lb",
+        "mk": "mk", "mg": "mg", "ml": "ml", "mi": "mi",
+        "mr": "mr", "mn": "mn", "my": "my", "ne": "ne",
+        "ny": "ny", "ps": "ps", "pa": "pa", "sm": "sm",
+        "gd": "gd", "st": "st", "sn": "sn", "sd": "sd",
+        "si": "si", "so": "so", "su": "su", "tg": "tg",
+        "ta": "ta", "te": "te", "uz": "uz", "xh": "xh",
+        "yi": "yi", "yo": "yo", "zu": "zu",
+        # === 特殊 ===
+        "auto": "auto",
+    }
 
     def __init__(self, app_key: str, app_secret: str):
         super().__init__()
@@ -27,11 +71,28 @@ class YoudaoTranslator(BaseTranslator):
     def name(self) -> str:
         return "youdao"
 
+    def _normalize_lang(self, raw: str) -> str:
+        """将标准语言代码转为有道 API 代码，不在表中则报错。"""
+        code = self._LANG_MAP.get(raw.lower())
+        if code is None:
+            raise UnsupportedLanguageError.for_engine(
+                self.name, raw, self._supported_languages()
+            )
+        return code
+
+    def _supported_languages(self) -> list[str]:
+        """返回可供用户选择的语言代码列表（不含别名）。"""
+        return [k for k in self._LANG_MAP if k == self._LANG_MAP[k] and k != "auto"]
+
     async def translate(self, text: str, from_lang: str, to_lang: str) -> str:
+        from_lang = self._normalize_lang(from_lang)
+        to_lang = self._normalize_lang(to_lang)
         results = await self.translate_batch([text], from_lang, to_lang)
         return results[0]
 
     async def translate_batch(self, texts: list[str], from_lang: str, to_lang: str) -> list[str]:
+        from_lang = self._normalize_lang(from_lang)
+        to_lang = self._normalize_lang(to_lang)
         request = self._build_request(texts, from_lang, to_lang)
         response = await self._request(request)
         body = response.json()

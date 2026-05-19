@@ -2,9 +2,17 @@ from ..engine.base import BaseTranslator
 from .cache import Cache
 
 class Translator:
-    def __init__(self, engine: BaseTranslator, cache: Cache):
-        self.engine = engine
-        self.cache = cache
+    def __init__(self, engine: str, options: dict[str, str] | None = None):
+        options = options or {}
+        match engine.lower():
+            case "youdao":
+                from ..engine.youdao import YoudaoTranslator
+                if "app_key" not in options or "app_secret" not in options:
+                    raise ValueError("使用有道翻译引擎需要提供 app_key 和 app_secret。")
+                self.engine = YoudaoTranslator(options["app_key"], options["app_secret"])
+            case _:
+                raise ValueError(f"不支持的翻译引擎：{engine}")
+        self.cache = Cache()
     
     async def translate(self, text: str, from_lang: str, to_lang: str) -> str:
         cached = self.cache.query(text, self.engine.name)
