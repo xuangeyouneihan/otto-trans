@@ -2,6 +2,11 @@ from abc import ABC, abstractmethod
 import asyncio
 
 class BaseTranslator(ABC):
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        ...
+
     @abstractmethod
     async def translate(self, text: str, from_lang: str, to_lang: str) -> str:
         ...

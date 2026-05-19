@@ -23,6 +23,10 @@ class YoudaoTranslator(BaseTranslator):
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self._client.aclose()  # 用完记得关
 
+    @property
+    def name(self) -> str:
+        return "youdao"
+
     async def translate(self, text: str, from_lang: str, to_lang: str) -> str:
         results = await self.translate_batch([text], from_lang, to_lang)
         return results[0]
