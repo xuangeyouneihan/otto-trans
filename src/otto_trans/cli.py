@@ -17,6 +17,28 @@ def _read_lines(prompt: str) -> list[str]:
         lines.append(line)
     return lines
 
+def _parse_value(raw: str):
+    """将 CLI 字符串转为 Python 类型，模拟 YAML 的类型推断"""
+    low = raw.lower()
+    # 布尔
+    if low in ("true", "false", "yes", "no", "on", "off"):
+        return low in ("true", "yes", "on")
+    # null
+    if low in ("null", "none", ""):
+        return None
+    # 整数
+    try:
+        return int(raw)
+    except ValueError:
+        pass
+    # 浮点
+    try:
+        return float(raw)
+    except ValueError:
+        pass
+    # 兜底：保留字符串
+    return raw
+
 @app.command()
 def main(
     texts: list[str] = typer.Argument([], help="要翻译的文本", show_default=False),
@@ -67,7 +89,7 @@ def main(
             raise typer.Exit(1)
 
         base_opts = settings.engines.get(engine, {})
-        cli_opts = dict(opt.split("=", 1) for opt in options) if options else {}
+        cli_opts = {k: _parse_value(v) for k, v in (opt.split("=", 1) for opt in options)}
 
         if engine.startswith("openai"):
             provider = engine.split(":", 1)[1] if ":" in engine else None

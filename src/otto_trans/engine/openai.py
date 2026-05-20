@@ -87,6 +87,8 @@ class OpenAITranslator(BaseTranslator):
         self.prompt_template = prompt_template if prompt_template else self.default_prompt_template
         self.thinking = thinking
         self.reasoning_effort = reasoning_effort
+        if temperature is not None and not (0 <= temperature <= 2):
+            raise ValueError("temperature 必须在 0 到 2 之间")
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.top_p = top_p
