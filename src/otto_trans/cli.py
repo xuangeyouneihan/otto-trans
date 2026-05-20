@@ -20,6 +20,8 @@ HELP_EPILOG = f"""
 
   openai:<provider>   指定 OpenAI 兼容提供商（如 openai:deepseek）
 
+  deepl               DeepL 翻译（需 api_key）
+
 
 
 引擎选项（-o key=value），会覆盖配置文件中的对应字段：
@@ -56,11 +58,27 @@ HELP_EPILOG = f"""
 
 
 
+  DeepL：
+
+    api_key              API 密钥
+
+    paid                 是否使用付费端点，true 或 false，默认 false
+
+    context              上下文信息，帮助模型理解翻译场景
+
+    preserve_formatting  保留原文格式，true 或 false
+
+    formality            正式程度，default、more、less、prefer_more 或 prefer_less
+
+    model_type           模型类型，quality_optimized、latency_optimized 或 prefer_quality_optimized
+
+
+
 逐行模式：
 
-  不提供文本参数时，程序进入逐行输入模式。每行文本独立翻译，
+  不提供文本参数时，程序进入逐行输入模式。每行独立对待，
 
-  输入空行结束。若未指定 -b 或 --batch，多行文本将合并为一段翻译。
+  输入空行结束。-b / --batch 模式下每行分别翻译，否则合并为一段。
 
 
 
@@ -135,6 +153,9 @@ def _parse_value(raw: str):
     # # null，启用会和 OpenAI API 的参数冲突，暂不启用
     # if low in ("null", "none", ""):
     #     return None
+    # null
+    if low in (""):
+        return None
     # 整数
     try:
         return int(raw)
@@ -198,7 +219,7 @@ def main(
             typer.echo("请指定目标语言（--to）或在配置文件中设置默认目标语言。", err=True)
             raise typer.Exit(1)
 
-        engine = engine if engine else settings.default_engine
+        engine = engine.lower() if engine else settings.default_engine
         if not engine:
             typer.echo("请指定翻译引擎（--engine）或在配置文件中设置默认翻译引擎。", err=True)
             raise typer.Exit(1)
@@ -219,9 +240,11 @@ def main(
         translator = Translator(engine, engine_opts)
 
         if batch:
-            results = await translator.translate_batch(texts, from_lang, to_lang)
-            for t, r in zip(texts, results):
-                typer.echo(f"{t} -> {r}")
+            results = await translator.translate_batch(texts, from_lang, to_lang, **engine_opts)
+            for i, (t, r) in enumerate(zip(texts, results)):
+                if i > 0:
+                    typer.echo("\n\n" + "="*40 + "\n\n")  # 分隔多条结果
+                typer.echo(f"原文：\n{t}\n\n翻译：\n{r}")
         else:
             result = await translator.translate(texts[0], from_lang, to_lang)
             typer.echo(result)

@@ -10,10 +10,15 @@ default_to: ""  # 默认目标语言，ISO 639 语言代码，支持 -Hans/-Hant
 
 # 引擎配置
 engines:
+  # 有道翻译配置示例
+  youdao:
+    app_key:     # 应用 ID
+    app_secret:  # 应用密钥
+
   # # OpenAI 相关配置示例
   # openai:
   #   your-provider:
-  #     endpoint:          # API 端点
+  #     endpoint:          # API 端点地址
   #     api_key:           # API 密钥
   #     model:             # 模型名称
   #     prompt_template:   # 自定义提示词模板，支持 {{from_lang}} 和 {{to_lang}} 占位
@@ -23,10 +28,14 @@ engines:
   #     max_tokens:        # 最大输出 token 数
   #     top_p:             # 核采样概率，0~1
 
-  # 有道翻译配置示例
-  youdao:
-    app_key: ""     # 应用 ID
-    app_secret: ""  # 应用密钥
+  # DeepL 配置示例
+  deepl:
+    api_key:              # API 密钥
+    paid:                 # 是否使用付费端点，true 或 false，默认 false
+    context:              # 上下文信息，帮助模型理解翻译场景
+    preserve_formatting:  # 保留原文格式，true 或 false
+    formality:            # 正式程度，default、more、less、prefer_more 或 prefer_less
+    model_type:           # 模型类型，quality_optimized、latency_optimized 或 prefer_quality_optimized
 """
 
 class Settings(BaseSettings):
@@ -46,7 +55,11 @@ class Settings(BaseSettings):
     @classmethod
     def load(cls) -> "Settings":
         config = yaml.safe_load(cls._config_path.read_text()) or {}
-        return cls(**config)
+        settings = cls(**config)
+        settings.default_engine = settings.default_engine.lower().strip()
+        settings.default_from = settings.default_from.lower().strip()
+        settings.default_to = settings.default_to.lower().strip()
+        return settings
 
     @classmethod
     def reset(cls):

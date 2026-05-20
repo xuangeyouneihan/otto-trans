@@ -7,15 +7,21 @@ class Translator:
         match engine.lower():
             case "youdao":
                 from ..engine.youdao import YoudaoTranslator
-                if "app_key" not in options or "app_secret" not in options:
+                if "app_key" not in options or "app_secret" not in options or not options["app_key"] or not options["app_secret"]:
                     raise ValueError("使用有道翻译引擎需要提供 app_key 和 app_secret。")
-                self.engine = YoudaoTranslator(options["app_key"], options["app_secret"])
+                self.engine = YoudaoTranslator(**options)
 
             case name if name.startswith("openai"):
                 from ..engine.openai import OpenAITranslator
-                if "endpoint" not in options or "api_key" not in options or "model" not in options:
+                if "endpoint" not in options or "api_key" not in options or "model" not in options or not options["endpoint"] or not options["api_key"] or not options["model"]:
                     raise ValueError("使用 OpenAI 翻译引擎需要提供 endpoint、api_key 和 model。")
                 self.engine = OpenAITranslator(**options)
+
+            case "deepl":
+                from ..engine.deepl import DeepLTranslator
+                if "api_key" not in options or not options["api_key"]:
+                    raise ValueError("使用 DeepL 翻译引擎需要提供 api_key。")
+                self.engine = DeepLTranslator(**options)
 
             case _:
                 raise ValueError(f"不支持的翻译引擎：{engine}")

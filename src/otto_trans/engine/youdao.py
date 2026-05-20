@@ -59,7 +59,7 @@ class YoudaoTranslator(BaseTranslator):
         super().__init__()
         self.app_key = app_key
         self.app_secret = app_secret
-        self._client = httpx.AsyncClient()  # 一个实例一个客户端
+        self._client = httpx.AsyncClient(follow_redirects=True)  # 一个实例一个客户端
 
     async def __aenter__(self):
         return self
@@ -71,36 +71,39 @@ class YoudaoTranslator(BaseTranslator):
     def name(self) -> str:
         return "youdao"
 
-    def _normalize_lang(self, raw: str) -> str:
+    def _normalize_lang(self, from_lang: str, to_lang: str) -> tuple[str, str]:
         """将标准语言代码转为有道 API 代码，不在表中则报错。"""
-        code = self._LANG_MAP.get(raw.lower())
-        if code is None:
+        from_code = self._LANG_MAP.get(from_lang.lower())
+        to_code = self._LANG_MAP.get(to_lang.lower())
+        if from_code is None or to_code is None:
             raise UnsupportedLanguageError.for_engine(
-                self.name, raw, self._supported_languages()
+                self.name, from_lang, to_lang, self._supported_languages(), self._supported_languages()
             )
-        return code
+        return (from_code, to_code)
 
     def _supported_languages(self) -> list[str]:
         """返回可供用户选择的语言代码列表（不含别名）。"""
         return [k for k in self._LANG_MAP if k == self._LANG_MAP[k] and k != "auto"]
 
     async def translate(self, text: str, from_lang: str, to_lang: str) -> str:
-        from_lang = self._normalize_lang(from_lang)
-        to_lang = self._normalize_lang(to_lang)
+        (from_lang, to_lang) = self._normalize_lang(from_lang, to_lang)
         results = await self.translate_batch([text], from_lang, to_lang)
         return results[0]
 
     async def translate_batch(self, texts: list[str], from_lang: str, to_lang: str) -> list[str]:
-        from_lang = self._normalize_lang(from_lang)
-        to_lang = self._normalize_lang(to_lang)
-        request = self._build_request(texts, from_lang, to_lang)
-        response = await self._request(request)
+        (from_lang, to_lang) = self._normalize_lang(from_lang, to_lang)
+        payload = self._build_payload(texts, from_lang, to_lang)
+        response = await self._request(payload)
+        try:
+            response.raise_for_status()
+        except httpx.HTTPError as e:
+            raise YoudaoAPIError(f"有道 API 返回错误: {response.status_code} {response.text}") from e
         body = response.json()
         if body.get("errorCode") != "0":
             raise YoudaoAPIError(f"有道 API 返回错误: {body.get('errorCode')}")
         return [r["translation"] for r in body["translateResults"]]
 
-    def _build_request(self, texts: list[str], from_lang: str, to_lang: str) -> dict:
+    def _build_payload(self, texts: list[str], from_lang: str, to_lang: str) -> dict:
         # Build the request payload according to Youdao API specifications
         salt = str(uuid.uuid1())
         curtime = str(int(time.time()))
@@ -117,10 +120,10 @@ class YoudaoTranslator(BaseTranslator):
             "sign": sign,
         }
 
-    async def _request(self, request: dict) -> httpx.Response:
+    async def _request(self, payload: dict) -> httpx.Response:
         # Placeholder implementation - replace with actual API request logic
         headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-        return await self._client.post(self.youdao_url, data=request, headers=headers)
+        return await self._client.post(self.youdao_url, data=payload, headers=headers)
 
     def _sha256(self, sign_str):
         hash_algorithm = hashlib.sha256()

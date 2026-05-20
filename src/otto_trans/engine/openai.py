@@ -93,6 +93,7 @@ class OpenAITranslator(BaseTranslator):
         self.max_tokens = max_tokens
         self.top_p = top_p
         self._client = httpx.AsyncClient(
+            follow_redirects=True,
             timeout=httpx.Timeout(60.0, read=120.0),
             transport=httpx.AsyncHTTPTransport(retries=2),  # ← 重试
         )
@@ -108,17 +109,20 @@ class OpenAITranslator(BaseTranslator):
         return f"openai:{self.model}"
 
     async def translate(self, text: str, from_lang: str, to_lang: str) -> str:
-        request_body = self._build_request(text, from_lang, to_lang)
+        payload = self._build_payload(text, from_lang, to_lang)
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}"}
-        response = await self._client.post(self.endpoint, json=request_body, headers=headers)
-        if response.status_code != 200:
-            raise OpenAIAPIError(f"OpenAI API 返回错误: {response.status_code} {response.text}")
+            "Authorization": f"Bearer {self.api_key}"
+        }
+        response = await self._client.post(self.endpoint, json=payload, headers=headers)
+        try:
+            response.raise_for_status()
+        except httpx.HTTPError as e:
+            raise OpenAIAPIError(f"OpenAI API 返回错误: {response.status_code} {response.text}") from e
         body = response.json()
         return body["choices"][0]["message"]["content"].strip()
 
-    def _build_request(self, text: str, from_lang: str, to_lang: str) -> dict:
+    def _build_payload(self, text: str, from_lang: str, to_lang: str) -> dict:
         from_display = self._lang_display(from_lang)
         to_display = self._lang_display(to_lang)
         prompt = self.prompt_template.format(from_lang=from_display, to_lang=to_display)
