@@ -4,7 +4,116 @@ import sys
 from .config.settings import Settings
 from .core.translator import Translator
 
-app = typer.Typer(context_settings={"help_option_names": ["-h", "-?", "--help"]})
+# 帮助后附加文本里留一个占位，运行时填入配置路径
+HELP_EPILOG = f"""
+配置文件: {Settings.get_config_path()}
+
+首次运行时自动生成默认配置。
+
+
+
+支持的引擎：
+
+  youdao              有道翻译（需 app_key + app_secret）
+
+  openai              OpenAI 兼容提供商，优先取配置中第一个
+
+  openai:<provider>   指定 OpenAI 兼容提供商（如 openai:deepseek）
+
+
+
+引擎选项（-o key=value），会覆盖配置文件中的对应字段：
+
+
+
+  有道：
+
+    app_key              应用 ID
+
+    app_secret           应用密钥
+
+
+
+  OpenAI / 兼容接口：
+
+    endpoint             API 端点地址
+
+    api_key              API 密钥
+
+    model                模型名称
+
+    prompt_template      自定义翻译提示词模板，支持 {{from_lang}} 和 {{to_lang}} 占位
+
+    thinking             深度思考模式，true 或 false
+
+    reasoning_effort     推理强度，none、minimal、low、medium、high、xhigh 或 max
+
+    temperature          采样温度，0~2，越低越确定
+
+    max_tokens           最大输出 token 数
+
+    top_p                核采样概率，0~1
+
+
+
+逐行模式：
+
+  不提供文本参数时，程序进入逐行输入模式。每行文本独立翻译，
+
+  输入空行结束。若未指定 -b 或 --batch，多行文本将合并为一段翻译。
+
+
+
+管道模式：
+
+  可通过管道或 heredoc 传入文本，每行独立对待。
+
+  -b / --batch 模式下每行分别翻译，否则合并为一段。
+
+
+
+示例：
+
+
+
+  $ otto -e youdao -o app_key=xxx -o app_secret=yyy -t zh-Hans hello
+
+
+
+  $ otto -e openai:deepseek -t zh-Hans hello
+
+
+
+  $ otto -t zh-Hans -b
+
+    请输入要翻译的文本（输入空行结束）：
+
+  > hello
+
+  > world
+
+  > [回车]
+
+
+
+  $ otto -e openai:deepseek -t zh-Hans << EOF
+
+  > hello
+
+  > world
+
+  > EOF
+
+
+
+  $ otto --reset-config
+"""
+
+app = typer.Typer(
+    context_settings={"help_option_names": ["-h", "-?", "--help"]},
+    epilog=HELP_EPILOG,
+    add_completion=False
+)
 
 def _read_lines(prompt: str) -> list[str]:
     """逐行读取，空行结束。返回行列表。"""
@@ -21,11 +130,11 @@ def _parse_value(raw: str):
     """将 CLI 字符串转为 Python 类型，模拟 YAML 的类型推断"""
     low = raw.lower()
     # 布尔
-    if low in ("true", "false", "yes", "no", "on", "off"):
-        return low in ("true", "yes", "on")
-    # null
-    if low in ("null", "none", ""):
-        return None
+    if low in ("true", "false", "yes", "no", "on", "off", "enable", "disable", "enabled", "disabled"):
+        return low in ("true", "yes", "on", "enable", "enabled")
+    # # null，启用会和 OpenAI API 的参数冲突，暂不启用
+    # if low in ("null", "none", ""):
+    #     return None
     # 整数
     try:
         return int(raw)
@@ -39,20 +148,23 @@ def _parse_value(raw: str):
     # 兜底：保留字符串
     return raw
 
-@app.command()
+@app.command(
+    context_settings={"help_option_names": ["-h", "-?", "--help"]},
+    epilog=HELP_EPILOG,
+)
 def main(
     texts: list[str] = typer.Argument([], help="要翻译的文本", show_default=False),
-    from_lang: str = typer.Option("auto", "-f", "--from", help="源语言", show_default=True),
-    to_lang: str = typer.Option("", "-t", "--to", help="目标语言", show_default=False),
+    from_lang: str = typer.Option("auto", "-f", "--from", help="源语言，ISO 639 语言代码，支持 -Hans/-Hant/-Cyrl/-Latn 文字标记，如\"zh-Hans\"、\"en\"等", show_default=False),
+    to_lang: str = typer.Option("", "-t", "--to", help="目标语言，ISO 639 语言代码，支持 -Hans/-Hant/-Cyrl/-Latn 文字标记，如\"zh-Hans\"、\"en\"等", show_default=False),
     engine: str = typer.Option("", "-e", "--engine", help="翻译引擎", show_default=False),
     options: list[str] = typer.Option([], "-o", "--option", help="引擎特定选项，格式为 key=value", show_default=False),
-    reset_config: bool = typer.Option(False, "--reset-config", help="重置配置文件", show_default=True),
-    batch: bool = typer.Option(False, "--batch", help="批量翻译", show_default=True)
+    batch: bool = typer.Option(False, "-b", "--batch", help="批量翻译", show_default=False),
+    reset_config: bool = typer.Option(False, "--reset-config", help="重置配置文件", show_default=False)
     ):
-    """otto-trans — 多引擎命令行翻译工具"""
+    """♿电棍翻译器 — 多引擎命令行翻译工具"""
     if reset_config:
         Settings.reset()
-        typer.echo("配置文件已重置")
+        typer.echo(f"已重置位于 {Settings.get_config_path()} 的配置文件", err=True)
         raise typer.Exit()
 
     if not texts:
@@ -74,6 +186,9 @@ def main(
         texts = [" ".join(texts)]  # 将命令行参数合并为一行
 
     async def run(from_lang=from_lang, to_lang=to_lang, engine=engine, options=options):
+        if not Settings.get_config_path().exists():
+            Settings.reset()
+            typer.echo(f"配置文件已生成在 {Settings.get_config_path()}", err=True)
         settings = Settings.load()
 
         from_lang = from_lang if from_lang else settings.default_from
