@@ -80,7 +80,7 @@ HELP_EPILOG = f"""
 
 
 
-  $ otto -e openai:deepseek -t zh-Hans hello
+  $ otto -e openai:deepseek -f en -t zh-Hans hello
 
 
 
