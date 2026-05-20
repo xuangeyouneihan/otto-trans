@@ -1,13 +1,26 @@
 from pathlib import Path
 import yaml
 from pydantic_settings import BaseSettings
-from typing import ClassVar
+from typing import ClassVar, Any
 
 DEFAULT_CONFIG_YAML = """\
 default_engine: ""
 default_from: auto
 default_to: ""
+
 engines:
+  # openai:
+  #   your-provider:
+  #     endpoint:
+  #     api_key:
+  #     model:
+  #     prompt_template:
+  #     thinking:
+  #     reasoning_effort:
+  #     temperature:
+  #     max_tokens:
+  #     top_p:
+
   youdao:
     app_key: ""
     app_secret: ""
@@ -19,7 +32,7 @@ class Settings(BaseSettings):
     default_engine: str = ""
     default_from: str = "auto"
     default_to: str = ""
-    engines: dict[str, dict[str, str]] = {}
+    engines: dict[str, Any] = {}
 
     config_path: ClassVar[Path] = Path.home() / ".config" / "otto-trans" / "config.yaml"
 

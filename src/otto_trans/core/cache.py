@@ -30,31 +30,33 @@ class Cache:
     def __del__(self):
         self._conn.close()
 
-    def query(self, key: str, engine: str) -> str | None:
+    def query(self, key: str, engine: str, from_lang: str, to_lang: str) -> str | None:
         cursor = self._conn.cursor()
-        table = b64encode(engine)
         try:
             cursor.execute(
-                f"SELECT target FROM [{table}] WHERE source = ?",
-                (b64encode(key),)
+                f"SELECT target FROM [{b64encode(engine)}] WHERE source = ? AND from_lang = ? AND to_lang = ?",
+                (b64encode(key), b64encode(from_lang), b64encode(to_lang))
             )
         except sqlite3.OperationalError:
             return None          # 表不存在 = 无缓存
         result = cursor.fetchone()
         return b64decode(result[0]) if result else None
 
-    def insert(self, key: str, value: str, engine: str):
+    def insert(self, key: str, value: str, engine: str, from_lang: str, to_lang: str):
         cursor = self._conn.cursor()
         self._create_table(b64encode(engine))
-        cursor.execute(f"INSERT OR REPLACE INTO [{b64encode(engine)}] (source, target) VALUES (?, ?)", (b64encode(key), b64encode(value)))
+        cursor.execute(f"INSERT OR REPLACE INTO [{b64encode(engine)}] (source, target, from_lang, to_lang) VALUES (?, ?, ?, ?)", (b64encode(key), b64encode(value), b64encode(from_lang), b64encode(to_lang)))
         self._conn.commit()
 
     def _create_table(self, name: str):
         cursor = self._conn.cursor()
         cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS [{name}] (
-                source TEXT PRIMARY KEY,
-                target TEXT
+                source TEXT NOT NULL,
+                target TEXT NOT NULL,
+                from_lang TEXT NOT NULL,
+                to_lang TEXT NOT NULL,
+                PRIMARY KEY (source, from_lang, to_lang)
             )
         """)
         self._conn.commit()

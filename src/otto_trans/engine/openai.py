@@ -1,0 +1,137 @@
+from .base import BaseTranslator
+import httpx
+
+class OpenAIAPIError(Exception):
+    """OpenAI API 调用异常"""
+    pass
+
+class OpenAITranslator(BaseTranslator):
+    default_prompt_template = (
+        "你是一个专业的翻译助手，负责将文本从一种语言翻译成另一种语言。"
+        "将以下文本从 {from_lang} 翻译成 {to_lang}。"
+        "对于单个词汇，直接给出最常用的翻译，不要列举多种释义。"
+        "只返回翻译后的文本，不要有解释、备注或引号。"
+    )
+
+    # 标准语言代码 → 提示词用的中文名称
+    _LANG_DISPLAY: dict[str, str] = {
+        "zh-Hans": "简体中文",
+        "zh-Hant": "繁体中文",
+        "zh": "中文",
+        "zh-CN": "简体中文",
+        "zh-TW": "繁体中文（台湾）",
+        "zh-HK": "繁体中文（香港）",
+        "en": "英文",
+        "ja": "日文",
+        "ko": "韩文",
+        "fr": "法文",
+        "es": "西班牙文",
+        "pt": "葡萄牙文",
+        "pt-BR": "巴西葡萄牙文",
+        "pt-PT": "欧洲葡萄牙文",
+        "it": "意大利文",
+        "ru": "俄文",
+        "vi": "越南文",
+        "de": "德文",
+        "ar": "阿拉伯文",
+        "id": "印尼文",
+        "th": "泰文",
+        "yue": "粤语",
+        "af": "南非荷兰语", "bs": "波斯尼亚语", "bg": "保加利亚语",
+        "ca": "加泰隆语", "hr": "克罗地亚语", "cs": "捷克语",
+        "da": "丹麦语", "nl": "荷兰语", "et": "爱沙尼亚语",
+        "fi": "芬兰语", "el": "希腊语", "he": "希伯来语",
+        "hi": "印地语", "hu": "匈牙利语", "lv": "拉脱维亚语",
+        "lt": "立陶宛语", "ms": "马来语", "no": "挪威语",
+        "fa": "波斯语", "pl": "波兰语", "ro": "罗马尼亚语",
+        "sk": "斯洛伐克语", "sl": "斯洛文尼亚语", "sv": "瑞典语",
+        "tr": "土耳其语", "uk": "乌克兰语", "ur": "乌尔都语",
+        "sq": "阿尔巴尼亚语", "am": "阿姆哈拉语", "hy": "亚美尼亚语",
+        "az": "阿塞拜疆语", "bn": "孟加拉语", "eu": "巴斯克语",
+        "be": "白俄罗斯语", "eo": "世界语", "tl": "菲律宾语",
+        "gl": "加利西亚语", "ka": "格鲁吉亚语", "gu": "古吉拉特语",
+        "ha": "豪萨语", "is": "冰岛语", "ig": "伊博语",
+        "ga": "爱尔兰语", "kn": "卡纳达语", "kk": "哈萨克语",
+        "km": "高棉语", "ku": "库尔德语", "ky": "柯尔克孜语",
+        "lo": "老挝语", "la": "拉丁语", "lb": "卢森堡语",
+        "mk": "马其顿语", "mg": "马尔加什语", "ml": "马拉雅拉姆语",
+        "mi": "毛利语", "mr": "马拉地语", "mn": "蒙古语",
+        "my": "缅甸语", "ne": "尼泊尔语", "ny": "齐切瓦语",
+        "ps": "普什图语", "pa": "旁遮普语", "sm": "萨摩亚语",
+        "gd": "苏格兰盖尔语", "st": "塞索托语", "sn": "修纳语",
+        "sd": "信德语", "si": "僧伽罗语", "so": "索马里语",
+        "su": "巽他语", "tg": "塔吉克语", "ta": "泰米尔语",
+        "te": "泰卢固语", "uz": "乌兹别克语", "xh": "南非科萨语",
+        "yi": "意第绪语", "yo": "约鲁巴语", "zu": "南非祖鲁语",
+        "mww": "白苗语", "ceb": "宿务语", "haw": "夏威夷语",
+        "otq": "克雷塔罗奥托米语", "yua": "尤卡坦玛雅语",
+        "sr-Cyrl": "塞尔维亚语（西里尔文）",
+        "sr-Latn": "塞尔维亚语（拉丁文）",
+        "sw": "斯瓦希里语", "tlh": "克林贡语",
+        "fj": "斐济语", "ht": "海地克里奥尔语",
+        "ty": "塔希提语", "to": "汤加语", "cy": "威尔士语",
+        "co": "科西嘉语", "fy": "弗里西语", "jw": "爪哇语",
+        "mt": "马耳他语",
+        "auto": "自动识别",
+    }
+
+    def _lang_display(self, code: str) -> str:
+        """将语言代码转为提示词用的中文名称，未知代码原样返回。"""
+        return self._LANG_DISPLAY.get(code, code)
+
+    def __init__(self, endpoint: str, api_key: str, model: str, prompt_template: str | None = None, thinking: bool | None = None, reasoning_effort: str | None = None, temperature: float | None = None, max_tokens: int | None = None, top_p: float | None = None):
+        super().__init__()
+        self.endpoint = endpoint
+        self.api_key = api_key
+        self.model = model
+        self.prompt_template = prompt_template if prompt_template else self.default_prompt_template
+        self.thinking = thinking
+        self.reasoning_effort = reasoning_effort
+        self.temperature = temperature
+        self.max_tokens = max_tokens
+        self.top_p = top_p
+        self._client = httpx.AsyncClient(
+            timeout=httpx.Timeout(60.0, read=120.0),
+            transport=httpx.AsyncHTTPTransport(retries=2),  # ← 重试
+        )
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self._client.aclose()  # 用完记得关
+
+    @property
+    def name(self) -> str:
+        return f"openai:{self.model}"
+
+    async def translate(self, text: str, from_lang: str, to_lang: str) -> str:
+        request_body = self._build_request(text, from_lang, to_lang)
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_key}"}
+        response = await self._client.post(self.endpoint, json=request_body, headers=headers)
+        if response.status_code != 200:
+            raise OpenAIAPIError(f"OpenAI API 返回错误: {response.status_code} {response.text}")
+        body = response.json()
+        return body["choices"][0]["message"]["content"].strip()
+
+    def _build_request(self, text: str, from_lang: str, to_lang: str) -> dict:
+        from_display = self._lang_display(from_lang)
+        to_display = self._lang_display(to_lang)
+        prompt = self.prompt_template.format(from_lang=from_display, to_lang=to_display)
+        request =  {
+            "messages": [{"role": "system", "content": prompt}, {"role": "user", "content": text}],
+            "model": self.model,
+        }
+        if self.thinking is not None:
+            request["thinking"] = {"type": "enabled" if self.thinking else "disabled"}
+        if self.reasoning_effort is not None:
+            request["reasoning_effort"] = self.reasoning_effort
+        if self.temperature is not None:
+            request["temperature"] = self.temperature
+        if self.max_tokens is not None:
+            request["max_tokens"] = self.max_tokens
+        if self.top_p is not None:
+            request["top_p"] = self.top_p
+        return request

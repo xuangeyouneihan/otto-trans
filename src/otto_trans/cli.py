@@ -1,9 +1,21 @@
 import typer
 import asyncio
+import sys
 from .config.settings import Settings
 from .core.translator import Translator
 
 app = typer.Typer(context_settings={"help_option_names": ["-h", "-?", "--help"]})
+
+def _read_lines(prompt: str) -> list[str]:
+    """逐行读取，空行结束。返回行列表。"""
+    typer.echo(prompt, err=True)
+    lines = []
+    while True:
+        line = input()
+        if line == "":
+            break
+        lines.append(line)
+    return lines
 
 @app.command()
 def main(
@@ -20,30 +32,63 @@ def main(
         Settings.reset()
         typer.echo("配置文件已重置")
         raise typer.Exit()
+
     if not texts:
-        typer.echo("请提供要翻译的文本。", err=True)
-        raise typer.Exit(1)
+        if not sys.stdin.isatty():
+            # stdin 是管道 → 读全部
+            texts = [l for l in sys.stdin.read().splitlines() if l]
+        else:
+            # stdin 是终端 → 交互式输入
+            texts = _read_lines("请输入要翻译的文本（输入空行结束）：")
+
+        if len(texts) <= 0:
+            typer.echo("未输入任何文本，退出。", err=True)
+            raise typer.Exit()
+        if not batch:
+            # 非批量模式下合并文本，减少 API 调用次数
+            texts = ["\n".join(texts)]
+
+    elif not batch:
+        texts = [" ".join(texts)]  # 将命令行参数合并为一行
+
     async def run(from_lang=from_lang, to_lang=to_lang, engine=engine, options=options):
         settings = Settings.load()
+
         from_lang = from_lang if from_lang else settings.default_from
+
         to_lang = to_lang if to_lang else settings.default_to
         if not to_lang:
             typer.echo("请指定目标语言（--to）或在配置文件中设置默认目标语言。", err=True)
             raise typer.Exit(1)
+
         engine = engine if engine else settings.default_engine
         if not engine:
             typer.echo("请指定翻译引擎（--engine）或在配置文件中设置默认翻译引擎。", err=True)
             raise typer.Exit(1)
-        engine_opts = dict(opt.split("=", 1) for opt in options) if options else settings.engines.get(engine, {})
+
+        base_opts = settings.engines.get(engine, {})
+        cli_opts = dict(opt.split("=", 1) for opt in options) if options else {}
+
+        if engine.startswith("openai"):
+            provider = engine.split(":", 1)[1] if ":" in engine else None
+            yaml_opts = settings.engines.get(engine.split(":")[0], {}) or {}
+            if provider:
+                base_opts = yaml_opts.get(provider, {})
+            else:
+                base_opts = next(iter(yaml_opts.values()), {})
+
+        engine_opts = {**base_opts, **cli_opts}
+
         translator = Translator(engine, engine_opts)
+
         if batch:
             results = await translator.translate_batch(texts, from_lang, to_lang)
             for t, r in zip(texts, results):
                 typer.echo(f"{t} -> {r}")
         else:
-            combined = " ".join(texts)
-            result = await translator.translate(combined, from_lang, to_lang)
+            result = await translator.translate(texts[0], from_lang, to_lang)
             typer.echo(result)
+
     asyncio.run(run())
 
 if __name__ == "__main__":

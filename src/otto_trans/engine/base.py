@@ -3,7 +3,7 @@ import asyncio
 
 class UnsupportedLanguageError(Exception):
     """引擎不支持的语言代码"""
-    
+
     @classmethod
     def for_engine(cls, engine_name: str, code: str, available: list[str]) -> "UnsupportedLanguageError":
         return cls(
