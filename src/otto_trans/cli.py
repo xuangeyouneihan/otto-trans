@@ -1,6 +1,7 @@
 import typer
 import asyncio
 import sys
+import io
 from .config.settings import Settings
 from .core.translator import Translator
 from .core.cache import Cache
@@ -185,6 +186,9 @@ def main(
     reset_cache: bool = typer.Option(False, "--reset-cache", help="重置缓存", show_default=False)
     ):
     """♿电棍翻译器 — 多引擎命令行翻译工具"""
+    sys_stdout_original = sys.stdout  # 记录本地输出
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')  # 更改本地输出编码
+
     if reset_config:
         Settings.reset()
         typer.echo(f"已重置位于 {Settings.get_config_path()} 的配置文件", err=True)
@@ -257,6 +261,8 @@ def main(
             typer.echo(result)
 
     asyncio.run(run())
+
+    sys.stdout = sys_stdout_original  # 把本地输出改回去
 
 if __name__ == "__main__":
     app()
