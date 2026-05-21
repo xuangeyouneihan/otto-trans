@@ -5,12 +5,13 @@ class UnsupportedLanguageError(Exception):
     """引擎不支持的语言代码"""
 
     @classmethod
-    def for_engine(cls, engine_name: str, from_code: str, to_code: str, from_available: list[str], to_available: list[str]) -> "UnsupportedLanguageError":
-        return cls(
-            f"当前翻译引擎（{engine_name}）不支持指定的语言 '{from_code}' -> '{to_code}'。\n"
-            f"可用的源语言如下：{', '.join(sorted(from_available))}\n"
-            f"可用的目标语言如下：{', '.join(sorted(to_available))}\n"
-        )
+    def for_engine(cls, engine_name: str, from_code: str, to_code: str, from_available: list[str] | None = None, to_available: list[str] | None = None) -> "UnsupportedLanguageError":
+        text = f"当前翻译引擎（{engine_name}）不支持指定的语言 '{from_code}' -> '{to_code}'。"
+        if from_available:
+            text += f"\n可用的源语言如下：{', '.join(sorted(from_available))}"
+        if to_available:
+            text += f"\n可用的目标语言如下：{', '.join(sorted(to_available))}"
+        return cls(text)
 
 class BaseTranslator(ABC):
     @property

@@ -1,4 +1,4 @@
-from .base import BaseTranslator
+from .base import BaseTranslator, UnsupportedLanguageError
 import httpx
 
 class OpenAIAPIError(Exception):
@@ -79,7 +79,9 @@ class OpenAITranslator(BaseTranslator):
         """将语言代码转为提示词用的中文名称，未知代码原样返回。"""
         return self._LANG_DISPLAY.get(code, code)
 
-    def __init__(self, endpoint: str, api_key: str, model: str, prompt_template: str | None = None, thinking: bool | None = None, reasoning_effort: str | None = None, temperature: float | None = None, max_tokens: int | None = None, top_p: float | None = None):
+    def __init__(self, endpoint: str, api_key: str, model: str, prompt_template: str | None = None, thinking: bool | None = None, reasoning_effort: str | None = None, temperature: float | None = None, max_tokens: int | None = None, top_p: float | None = None, **kwargs):
+        if kwargs:
+            raise ValueError(f"未知参数: {list(kwargs.keys())}")
         super().__init__()
         self.endpoint = endpoint
         self.api_key = api_key
@@ -109,6 +111,10 @@ class OpenAITranslator(BaseTranslator):
         return f"openai:{self.model}"
 
     async def translate(self, text: str, from_lang: str, to_lang: str) -> str:
+        if to_lang.lower() == "auto":
+            raise UnsupportedLanguageError.for_engine(
+                self.name, from_lang, to_lang
+            )
         payload = self._build_payload(text, from_lang, to_lang)
         headers = {
             "Content-Type": "application/json",

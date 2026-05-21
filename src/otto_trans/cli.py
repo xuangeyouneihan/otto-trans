@@ -3,6 +3,7 @@ import asyncio
 import sys
 from .config.settings import Settings
 from .core.translator import Translator
+from .core.cache import Cache
 
 # 帮助后附加文本里留一个占位，运行时填入配置路径
 HELP_EPILOG = f"""
@@ -60,7 +61,7 @@ HELP_EPILOG = f"""
 
   DeepL：
 
-    api_key              API 密钥
+    auth_key             API 密钥
 
     paid                 是否使用付费端点，true 或 false，默认 false
 
@@ -180,12 +181,18 @@ def main(
     engine: str = typer.Option("", "-e", "--engine", help="翻译引擎", show_default=False),
     options: list[str] = typer.Option([], "-o", "--option", help="引擎特定选项，格式为 key=value", show_default=False),
     batch: bool = typer.Option(False, "-b", "--batch", help="批量翻译", show_default=False),
-    reset_config: bool = typer.Option(False, "--reset-config", help="重置配置文件", show_default=False)
+    reset_config: bool = typer.Option(False, "--reset-config", help="重置配置文件", show_default=False),
+    reset_cache: bool = typer.Option(False, "--reset-cache", help="重置缓存", show_default=False)
     ):
     """♿电棍翻译器 — 多引擎命令行翻译工具"""
     if reset_config:
         Settings.reset()
         typer.echo(f"已重置位于 {Settings.get_config_path()} 的配置文件", err=True)
+        raise typer.Exit()
+
+    if reset_cache:
+        Cache.reset()
+        typer.echo(f"已重置位于 {Cache.get_db_path()} 的缓存", err=True)
         raise typer.Exit()
 
     if not texts:
@@ -240,7 +247,7 @@ def main(
         translator = Translator(engine, engine_opts)
 
         if batch:
-            results = await translator.translate_batch(texts, from_lang, to_lang, **engine_opts)
+            results = await translator.translate_batch(texts, from_lang, to_lang)
             for i, (t, r) in enumerate(zip(texts, results)):
                 if i > 0:
                     typer.echo("\n\n" + "="*40 + "\n\n")  # 分隔多条结果

@@ -12,26 +12,25 @@ class DeepLTranslator(BaseTranslator):
     deepl_url_free = "https://api-free.deepl.com/v2/translate"
     deepl_languages_url_free = "https://api-free.deepl.com/v3/languages?resource=translate_text"
 
-    _LANG_MAP: dict[str, str] = {
-        # 常见别名 → BCP47
-        "zh-cn": "ZH-HANS",
-        "zh-tw": "ZH-HANT",
-        "zh-hk": "ZH-HANT",
-        # 以下直通（包括目标专属的变体）
-        "zh-hans": "ZH-HANS",
-        "zh-hant": "ZH-HANT",
-        "pt-br": "PT-BR",
-        "pt-pt": "PT-PT",
-        "en-gb": "EN-GB",
-        "en-us": "EN-US",
-        "de-de": "DE-DE",
-        "fr-fr": "FR-FR",
-        "es-419": "ES-419",
+    _FROM_LANG_MAP: dict[str, str] = {
+        "DE-DE": "DE",
+        "EN-GB": "EN",
+        "EN-US": "EN",
+        "ES-419": "ES",
+        "FR-FR": "FR",
+        "PT-BR": "PT",
+        "PT-PT": "PT",
+        "ZH-HANS": "ZH",
+        "ZH-HANT": "ZH"
     }
 
-    def __init__(self, api_key: str, paid: bool = False, context: str | None = None, preserve_formatting: bool | None = None, formality: str | None = None, model_type: str | None = None):
+    _TO_LANG_MAP: dict[str, str] = {}
+
+    def __init__(self, auth_key: str, paid: bool = False, context: str | None = None, preserve_formatting: bool | None = None, formality: str | None = None, model_type: str | None = None, **kwargs):
+        if kwargs:
+            raise ValueError(f"未知参数: {list(kwargs.keys())}")
         super().__init__()
-        self.api_key = api_key
+        self.auth_key = auth_key
         self.paid = paid
         self.context = context
         self.preserve_formatting = preserve_formatting
@@ -53,12 +52,11 @@ class DeepLTranslator(BaseTranslator):
         return (await self.translate_batch([text], from_lang, to_lang))[0]
 
     async def translate_batch(self, texts: list[str], from_lang: str, to_lang: str) -> list[str]:
-        from_lang = self._normalize_lang(from_lang)
-        to_lang = self._normalize_lang(to_lang)
+        (from_lang, to_lang) = self._normalize_lang(from_lang, to_lang)
         payload = self._build_payload(texts, from_lang, to_lang)
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"DeepL-Auth-Key {self.api_key}"
+            "Authorization": f"DeepL-Auth-Key {self.auth_key}"
         }
         response = await self._client.post(self.deepl_url if self.paid else self.deepl_url_free, json=payload, headers=headers)
         try:
@@ -90,15 +88,17 @@ class DeepLTranslator(BaseTranslator):
             payload["model_type"] = self.model_type
         return payload
     
-    def _normalize_lang(self, raw: str) -> str:
-        code = self._LANG_MAP.get(raw.lower())
-        return code if code else raw.upper()
+    def _normalize_lang(self, from_lang: str, to_lang: str) -> tuple[str, str]:
+        """将标准语言代码转为有道 API 代码，不在表中则报错。"""
+        from_code = self._FROM_LANG_MAP.get(from_lang.upper())
+        to_code = self._TO_LANG_MAP.get(to_lang.upper())
+        return (from_code or from_lang.upper(), to_code or to_lang.upper())
 
     async def _fetch_supported_languages(self) -> tuple[list[str], list[str]]:
         # Implementation for fetching supported languages
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"DeepL-Auth-Key {self.api_key}"
+            "Authorization": f"DeepL-Auth-Key {self.auth_key}"
         }
         response = await self._client.get(self.deepl_languages_url if self.paid else self.deepl_languages_url_free, headers=headers)
         try:

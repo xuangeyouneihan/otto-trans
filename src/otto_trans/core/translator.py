@@ -19,8 +19,8 @@ class Translator:
 
             case "deepl":
                 from ..engine.deepl import DeepLTranslator
-                if "api_key" not in options or not options["api_key"]:
-                    raise ValueError("使用 DeepL 翻译引擎需要提供 api_key。")
+                if "auth_key" not in options or not options["auth_key"]:
+                    raise ValueError("使用 DeepL 翻译引擎需要提供 auth_key。")
                 self.engine = DeepLTranslator(**options)
 
             case _:

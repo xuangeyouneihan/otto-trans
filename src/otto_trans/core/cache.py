@@ -12,6 +12,7 @@ def b64decode(s: str) -> str:
 class Cache:
     _instance = None
     _initialized = False
+    _db_path = Path.home() / ".cache" / "otto-trans" / "cache.db"
 
     def __new__(cls, *args, **kwargs):
         if not cls._instance:
@@ -21,9 +22,8 @@ class Cache:
     def __init__(self):
         if self._initialized:
             return
-        self.db_path = Path.home() / ".cache" / "otto-trans" / "cache.db"
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._conn = sqlite3.connect(str(self.db_path))
+        self._db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._conn = sqlite3.connect(str(self._db_path))
         self._initialized = True
         atexit.register(self._conn.close)
 
@@ -60,3 +60,15 @@ class Cache:
             )
         """)
         self._conn.commit()
+
+    @classmethod
+    def get_db_path(cls) -> Path:
+        return Path(cls._db_path)
+
+    @classmethod
+    def reset(cls):
+        if cls._instance is not None:
+            cls._instance._conn.close()
+        cls._db_path.unlink(missing_ok=True)
+        if cls._instance is not None:
+            cls._instance._conn = sqlite3.connect(str(cls._db_path))

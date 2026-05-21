@@ -55,7 +55,9 @@ class YoudaoTranslator(BaseTranslator):
         "auto": "auto",
     }
 
-    def __init__(self, app_key: str, app_secret: str):
+    def __init__(self, app_key: str, app_secret: str, **kwargs):
+        if kwargs:
+            raise ValueError(f"未知参数: {list(kwargs.keys())}")
         super().__init__()
         self.app_key = app_key
         self.app_secret = app_secret
@@ -75,7 +77,7 @@ class YoudaoTranslator(BaseTranslator):
         """将标准语言代码转为有道 API 代码，不在表中则报错。"""
         from_code = self._LANG_MAP.get(from_lang.lower())
         to_code = self._LANG_MAP.get(to_lang.lower())
-        if from_code is None or to_code is None:
+        if from_code is None or to_code is None or to_code == "auto":
             raise UnsupportedLanguageError.for_engine(
                 self.name, from_lang, to_lang, self._supported_languages(), self._supported_languages()
             )
@@ -127,7 +129,7 @@ class YoudaoTranslator(BaseTranslator):
 
     def _sha256(self, sign_str):
         hash_algorithm = hashlib.sha256()
-        hash_algorithm.update(sign_str.encode('utf-8'))
+        hash_algorithm.update(sign_str.encode("utf-8"))
         return hash_algorithm.hexdigest()
     
     def _truncate(self, text: str) -> str:

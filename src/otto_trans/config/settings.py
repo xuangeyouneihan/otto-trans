@@ -30,7 +30,7 @@ engines:
 
   # DeepL 配置示例
   deepl:
-    api_key:              # API 密钥
+    auth_key:              # API 密钥
     paid:                 # 是否使用付费端点，true 或 false，默认 false
     context:              # 上下文信息，帮助模型理解翻译场景
     preserve_formatting:  # 保留原文格式，true 或 false
@@ -50,7 +50,7 @@ class Settings(BaseSettings):
 
     @classmethod
     def get_config_path(cls) -> Path:
-        return cls._config_path
+        return Path(cls._config_path)
 
     @classmethod
     def load(cls) -> "Settings":
