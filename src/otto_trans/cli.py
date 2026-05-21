@@ -186,9 +186,11 @@ def main(
     ):
     """♿电棍翻译器 — 多引擎命令行翻译工具"""
     sys_stdout_encoding = sys.stdout.encoding  # 记录本地输出编码
-    # 更改输出编码为 UTF-8
+    sys_stdin_encoding = sys.stdin.encoding  # 记录本地输入编码
+    # 更改 std{in,out} 编码为 UTF-8，确保中文正常显示
     try:
         sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[arg-type]
+        sys.stdin.reconfigure(encoding="utf-8")  # type: ignore[arg-type]
     except Exception:
         pass
 
@@ -268,6 +270,7 @@ def main(
     # 将输出编码改回去
     try:
         sys.stdout.reconfigure(encoding=sys_stdout_encoding)  # type: ignore[arg-type]
+        sys.stdin.reconfigure(encoding=sys_stdin_encoding)  # type: ignore[arg-type]
     except Exception:
         pass
 
