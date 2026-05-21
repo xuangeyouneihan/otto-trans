@@ -1,7 +1,6 @@
 import typer
 import asyncio
 import sys
-import io
 from .config.settings import Settings
 from .core.translator import Translator
 from .core.cache import Cache
@@ -186,8 +185,12 @@ def main(
     reset_cache: bool = typer.Option(False, "--reset-cache", help="重置缓存", show_default=False)
     ):
     """♿电棍翻译器 — 多引擎命令行翻译工具"""
-    sys_stdout_original = sys.stdout  # 记录本地输出
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')  # 更改本地输出编码
+    sys_stdout_encoding = sys.stdout.encoding  # 记录本地输出编码
+    # 更改输出编码为 UTF-8
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[arg-type]
+    except Exception:
+        pass
 
     if reset_config:
         Settings.reset()
@@ -262,7 +265,11 @@ def main(
 
     asyncio.run(run())
 
-    sys.stdout = sys_stdout_original  # 把本地输出改回去
+    # 将输出编码改回去
+    try:
+        sys.stdout.reconfigure(encoding=sys_stdout_encoding)  # type: ignore[arg-type]
+    except Exception:
+        pass
 
 if __name__ == "__main__":
     app()

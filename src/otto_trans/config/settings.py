@@ -54,7 +54,7 @@ class Settings(BaseSettings):
 
     @classmethod
     def load(cls) -> "Settings":
-        config = yaml.safe_load(cls._config_path.read_text()) or {}
+        config = yaml.safe_load(cls._config_path.read_text(encoding="utf-8")) or {}
         settings = cls(**config)
         settings.default_engine = settings.default_engine.lower().strip()
         settings.default_from = settings.default_from.lower().strip()
@@ -66,4 +66,4 @@ class Settings(BaseSettings):
         if cls._config_path.exists():
             cls._config_path.unlink()
         cls._config_path.parent.mkdir(parents=True, exist_ok=True)
-        cls._config_path.write_text(DEFAULT_CONFIG_YAML)
+        cls._config_path.write_text(DEFAULT_CONFIG_YAML, encoding="utf-8")
