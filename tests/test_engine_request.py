@@ -1,5 +1,4 @@
 import pytest
-from unittest.mock import patch
 from otto_trans.engine.youdao import YoudaoTranslator
 from otto_trans.engine.openai import OpenAITranslator
 

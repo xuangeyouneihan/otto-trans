@@ -131,8 +131,9 @@ HELP_EPILOG = f"""
 app = typer.Typer(
     context_settings={"help_option_names": ["-h", "-?", "--help"]},
     epilog=HELP_EPILOG,
-    add_completion=False
+    add_completion=False,
 )
+
 
 def _read_lines(prompt: str) -> list[str]:
     """逐行读取，空行结束。返回行列表。"""
@@ -145,11 +146,23 @@ def _read_lines(prompt: str) -> list[str]:
         lines.append(line)
     return lines
 
+
 def _parse_value(raw: str):
     """将 CLI 字符串转为 Python 类型，模拟 YAML 的类型推断"""
     low = raw.lower()
     # 布尔
-    if low in ("true", "false", "yes", "no", "on", "off", "enable", "disable", "enabled", "disabled"):
+    if low in (
+        "true",
+        "false",
+        "yes",
+        "no",
+        "on",
+        "off",
+        "enable",
+        "disable",
+        "enabled",
+        "disabled",
+    ):
         return low in ("true", "yes", "on", "enable", "enabled")
     # # null，启用会和 OpenAI API 的参数冲突，暂不启用
     # if low in ("null", "none", ""):
@@ -170,20 +183,43 @@ def _parse_value(raw: str):
     # 兜底：保留字符串
     return raw
 
+
 @app.command(
     context_settings={"help_option_names": ["-h", "-?", "--help"]},
     epilog=HELP_EPILOG,
 )
 def main(
     texts: list[str] = typer.Argument([], help="要翻译的文本", show_default=False),
-    from_lang: str = typer.Option("auto", "-f", "--from", help="源语言，ISO 639 语言代码，支持 -Hans/-Hant/-Cyrl/-Latn 文字标记，如\"zh-Hans\"、\"en\"等", show_default=False),
-    to_lang: str = typer.Option("", "-t", "--to", help="目标语言，ISO 639 语言代码，支持 -Hans/-Hant/-Cyrl/-Latn 文字标记，如\"zh-Hans\"、\"en\"等", show_default=False),
-    engine: str = typer.Option("", "-e", "--engine", help="翻译引擎", show_default=False),
-    options: list[str] = typer.Option([], "-o", "--option", help="引擎特定选项，格式为 key=value", show_default=False),
-    batch: bool = typer.Option(False, "-b", "--batch", help="批量翻译", show_default=False),
-    reset_config: bool = typer.Option(False, "--reset-config", help="重置配置文件", show_default=False),
-    reset_cache: bool = typer.Option(False, "--reset-cache", help="重置缓存", show_default=False)
-    ):
+    from_lang: str = typer.Option(
+        "auto",
+        "-f",
+        "--from",
+        help='源语言，ISO 639 语言代码，支持 -Hans/-Hant/-Cyrl/-Latn 文字标记，如"zh-Hans"、"en"等',
+        show_default=False,
+    ),
+    to_lang: str = typer.Option(
+        "",
+        "-t",
+        "--to",
+        help='目标语言，ISO 639 语言代码，支持 -Hans/-Hant/-Cyrl/-Latn 文字标记，如"zh-Hans"、"en"等',
+        show_default=False,
+    ),
+    engine: str = typer.Option(
+        "", "-e", "--engine", help="翻译引擎", show_default=False
+    ),
+    options: list[str] = typer.Option(
+        [], "-o", "--option", help="引擎特定选项，格式为 key=value", show_default=False
+    ),
+    batch: bool = typer.Option(
+        False, "-b", "--batch", help="批量翻译", show_default=False
+    ),
+    reset_config: bool = typer.Option(
+        False, "--reset-config", help="重置配置文件", show_default=False
+    ),
+    reset_cache: bool = typer.Option(
+        False, "--reset-cache", help="重置缓存", show_default=False
+    ),
+):
     """♿电棍翻译器 — 多引擎命令行翻译工具"""
     sys_stdout_encoding = sys.stdout.encoding  # 记录本地输出编码
     sys_stdin_encoding = sys.stdin.encoding  # 记录本地输入编码
@@ -207,7 +243,7 @@ def main(
     if not texts:
         if not sys.stdin.isatty():
             # stdin 是管道 → 读全部
-            texts = [l for l in sys.stdin.read().splitlines() if l]
+            texts = [line for line in sys.stdin.read().splitlines() if line]
         else:
             # stdin 是终端 → 交互式输入
             texts = _read_lines("请输入要翻译的文本（输入空行结束）：")
@@ -232,16 +268,22 @@ def main(
 
         to_lang = to_lang if to_lang else settings.default_to
         if not to_lang:
-            typer.echo("请指定目标语言（--to）或在配置文件中设置默认目标语言。", err=True)
+            typer.echo(
+                "请指定目标语言（--to）或在配置文件中设置默认目标语言。", err=True
+            )
             raise typer.Exit(1)
 
         engine = engine.lower() if engine else settings.default_engine
         if not engine:
-            typer.echo("请指定翻译引擎（--engine）或在配置文件中设置默认翻译引擎。", err=True)
+            typer.echo(
+                "请指定翻译引擎（--engine）或在配置文件中设置默认翻译引擎。", err=True
+            )
             raise typer.Exit(1)
 
         base_opts = settings.engines.get(engine, {})
-        cli_opts = {k: _parse_value(v) for k, v in (opt.split("=", 1) for opt in options)}
+        cli_opts = {
+            k: _parse_value(v) for k, v in (opt.split("=", 1) for opt in options)
+        }
 
         if engine.startswith("openai"):
             provider = engine.split(":", 1)[1] if ":" in engine else None
@@ -259,7 +301,7 @@ def main(
             results = await translator.translate_batch(texts, from_lang, to_lang)
             for i, (t, r) in enumerate(zip(texts, results)):
                 if i > 0:
-                    typer.echo("\n\n" + "="*40 + "\n\n")  # 分隔多条结果
+                    typer.echo("\n\n" + "=" * 40 + "\n\n")  # 分隔多条结果
                 typer.echo(f"原文：\n{t}\n\n翻译：\n{r}")
         else:
             result = await translator.translate(texts[0], from_lang, to_lang)
@@ -273,6 +315,7 @@ def main(
         sys.stdin.reconfigure(encoding=sys_stdin_encoding)  # type: ignore[arg-type]
     except Exception:
         pass
+
 
 if __name__ == "__main__":
     app()

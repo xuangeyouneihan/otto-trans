@@ -3,7 +3,7 @@ import yaml
 from pydantic_settings import BaseSettings
 from typing import ClassVar, Any
 
-DEFAULT_CONFIG_YAML = f"""\
+DEFAULT_CONFIG_YAML = """\
 default_engine: ""  # 默认翻译引擎
 default_from: auto  # 默认源语言，ISO 639 语言代码，支持 -Hans/-Hant/-Cyrl/-Latn 文字标记，如"zh-Hans"、"en"。auto 表示自动检测
 default_to: ""  # 默认目标语言，ISO 639 语言代码，支持 -Hans/-Hant/-Cyrl/-Latn 文字标记，"zh-Hans"、"en"

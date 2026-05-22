@@ -19,7 +19,7 @@ jobs:
       - name: Run tests
         run: uv run pytest --cov=otto_trans --cov-report=term-missing
       - name: Lint with ruff
-        run: uv run ruff check src/ tests/
+        run: uv run ruff check src/ tests/ --fix
       - name: Type check with mypy
         run: uv run mypy src/otto_trans/ tests/
       - name: Build package
