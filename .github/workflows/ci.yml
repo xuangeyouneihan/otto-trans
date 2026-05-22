@@ -1,0 +1,37 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  test_and_build:
+    name: Test on Python ${{ matrix.python-version }} and Build Package
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@main
+      - name: Install dependencies
+        run: uv sync
+      - name: Run tests
+        run: uv run pytest --cov=otto_trans --cov-report=term-missing
+      - name: Lint with ruff
+        run: uv run ruff check src/ tests/
+      - name: Type check with mypy
+        run: uv run mypy src/otto_trans/ tests/
+      - name: Build package
+        if: matrix.python-version == '3.10'
+        run: uv build
+      - name: Upload wheel
+        if: matrix.python-version == '3.10'
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist/*.whl
+          archive: false
+      - name: Upload source
+        if: matrix.python-version == '3.10'
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist/*.tar.gz
+          archive: false

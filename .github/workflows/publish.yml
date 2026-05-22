@@ -1,0 +1,28 @@
+name: Publish
+on:
+  push:
+    tags:
+      - "[0-9]*"
+jobs:
+  publish:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Verify tag is on master
+        run: |
+          if ! git merge-base --is-ancestor ${{ github.sha }} origin/master; then
+            echo "Tag not on master branch. Publishing aborted."
+            exit 1
+          fi
+      - name: Install uv
+        uses: astral-sh/setup-uv@main
+      - name: Install dependencies
+        run: uv sync --no-dev
+      - name: Build package
+        run: uv build
+      - name: Publish to PyPI
+        run: uv publish --token ${{ secrets.PYPI_TOKEN }}
