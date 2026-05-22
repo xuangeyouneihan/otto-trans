@@ -15,18 +15,20 @@ engines:
     app_key:     # 应用 ID
     app_secret:  # 应用密钥
 
-  # # OpenAI 相关配置示例
-  # openai:
-  #   your-provider:
-  #     endpoint:          # API 端点地址
-  #     api_key:           # API 密钥
-  #     model:             # 模型名称
-  #     prompt_template:   # 自定义提示词模板，支持 {{from_lang}} 和 {{to_lang}} 占位
-  #     thinking:          # 深度思考模式，true 或 false
-  #     reasoning_effort:  # 推理强度，none、minimal、low、medium、high、xhigh 或 max
-  #     temperature:       # 采样温度，0~2，越低越确定
-  #     max_tokens:        # 最大输出 token 数
-  #     top_p:             # 核采样概率，0~1
+  # OpenAI 相关配置示例
+  openai:
+    # your-provider:
+    #   endpoint:          # API 端点地址
+    #   api_key:           # API 密钥
+    #   model:             # 模型名称
+    #   prompt_template:   # 自定义提示词模板，支持 {{from_lang}} 和 {{to_lang}} 占位
+    #   thinking:          # 深度思考模式，true 或 false
+    #   reasoning_effort:  # 推理强度，none、minimal、low、medium、high、xhigh 或 max
+    #   temperature:       # 采样温度，0~2，越低越确定
+    #   max_tokens:        # 最大输出 token 数
+    #   top_p:             # 核采样概率，0~1
+    #   top_k:             # top-k 采样，整数，越大越随机
+    #   repetition_penalty: # 重复惩罚，0~2，越大越避免重复
 
   # DeepL 配置示例
   deepl:

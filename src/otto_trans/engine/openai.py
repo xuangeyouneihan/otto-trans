@@ -157,7 +157,9 @@ class OpenAITranslator(BaseTranslator):
         temperature: float | None = None,
         max_tokens: int | None = None,
         top_p: float | None = None,
-        **kwargs,
+        top_k: int | None = None,
+        repetition_penalty: float | None = None,
+        **kwargs
     ):
         if kwargs:
             raise ValueError(f"未知参数: {list(kwargs.keys())}")
@@ -175,6 +177,8 @@ class OpenAITranslator(BaseTranslator):
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.top_p = top_p
+        self.top_k = top_k
+        self.repetition_penalty = repetition_penalty
         self._client = httpx.AsyncClient(
             follow_redirects=True,
             timeout=httpx.Timeout(60.0, read=120.0),
@@ -230,4 +234,8 @@ class OpenAITranslator(BaseTranslator):
             request["max_tokens"] = self.max_tokens
         if self.top_p is not None:
             request["top_p"] = self.top_p
+        if self.top_k is not None:
+            request["top_k"] = self.top_k
+        if self.repetition_penalty is not None:
+            request["repetition_penalty"] = self.repetition_penalty
         return request

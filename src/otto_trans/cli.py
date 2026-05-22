@@ -59,6 +59,10 @@ HELP_EPILOG = f"""
 
     top_p                核采样概率，0~1
 
+    top_k                top-k 采样，整数，越大越随机
+
+    repetition_penalty   重复惩罚，0~2，越大越避免重复
+
 
 
   DeepL：
