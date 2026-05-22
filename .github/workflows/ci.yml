@@ -2,7 +2,9 @@ name: CI
 on: [push, pull_request]
 jobs:
   test_and_build:
-    name: Test on Python ${{ matrix.python-version }} and Build Package
+    name: >-
+      Test on Python ${{ matrix.python-version }}
+      ${{ matrix.python-version == '3.10' && 'and Build Package' || '' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -13,7 +15,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@main
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --dev
       - name: Run tests
         run: uv run pytest --cov=otto_trans --cov-report=term-missing
       - name: Lint with ruff
