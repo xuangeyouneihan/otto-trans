@@ -33,5 +33,6 @@ dev = [
     "pytest-mock>=3.15.1",
     "pytest-cov>=7.1.0",
     "ruff>=0.15.14",
-    "mypy>=2.1.0"
+    "mypy>=2.1.0",
+    "types-PyYAML>=6.0.12.20250318"
 ]

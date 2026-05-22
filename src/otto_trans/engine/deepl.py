@@ -1,5 +1,8 @@
-from .base import BaseTranslator, UnsupportedLanguageError
+from typing import Any
+
 import httpx
+
+from .base import BaseTranslator, UnsupportedLanguageError
 
 
 class DeepLAPIError(Exception):
@@ -99,7 +102,7 @@ class DeepLTranslator(BaseTranslator):
         return [t["text"] for t in body["translations"]]
 
     def _build_payload(self, texts: list[str], from_lang: str, to_lang: str) -> dict:
-        payload = {
+        payload: dict[str, Any] = {
             "text": texts,
             "target_lang": to_lang,
         }

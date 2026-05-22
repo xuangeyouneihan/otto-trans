@@ -1,9 +1,11 @@
-import typer
 import asyncio
 import sys
+
+import typer
+
 from .config.settings import Settings
-from .core.translator import Translator
 from .core.cache import Cache
+from .core.translator import Translator
 
 # 帮助后附加文本里留一个占位，运行时填入配置路径
 HELP_EPILOG = f"""
@@ -225,8 +227,8 @@ def main(
     sys_stdin_encoding = sys.stdin.encoding  # 记录本地输入编码
     # 更改 std{in,out} 编码为 UTF-8，确保中文正常显示
     try:
-        sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[arg-type]
-        sys.stdin.reconfigure(encoding="utf-8")  # type: ignore[arg-type]
+        sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
+        sys.stdin.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
     except Exception:
         pass
 
@@ -311,8 +313,8 @@ def main(
 
     # 将输出编码改回去
     try:
-        sys.stdout.reconfigure(encoding=sys_stdout_encoding)  # type: ignore[arg-type]
-        sys.stdin.reconfigure(encoding=sys_stdin_encoding)  # type: ignore[arg-type]
+        sys.stdout.reconfigure(encoding=sys_stdout_encoding)  # type: ignore[union-attr]
+        sys.stdin.reconfigure(encoding=sys_stdin_encoding)  # type: ignore[union-attr]
     except Exception:
         pass
 
