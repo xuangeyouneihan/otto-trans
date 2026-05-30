@@ -47,7 +47,7 @@ HELP_EPILOG = f"""
 
     model                模型名称
 
-    prompt_template      自定义翻译提示词模板，支持 {{from_lang}} 和 {{to_lang}} 占位
+    prompt_template      自定义翻译提示词模板，支持 {{src_lang}} 和 {{tgt_lang}} 占位
 
     thinking             深度思考模式，true 或 false
 
@@ -105,7 +105,7 @@ HELP_EPILOG = f"""
 
 
 
-  $ otto -e openai:deepseek -f en -t zh-Hans hello
+  $ otto -e openai:deepseek -s en -t zh-Hans hello
 
 
 
@@ -196,17 +196,17 @@ def _parse_value(raw: str):
 )
 def main(
     texts: list[str] = typer.Argument([], help="要翻译的文本", show_default=False),
-    from_lang: str = typer.Option(
+    src_lang: str = typer.Option(
         "auto",
-        "-f",
-        "--from",
+        "-s",
+        "--source",
         help='源语言，ISO 639 语言代码，支持 -Hans/-Hant/-Cyrl/-Latn 文字标记，如"zh-Hans"、"en"等',
         show_default=False,
     ),
-    to_lang: str = typer.Option(
+    tgt_lang: str = typer.Option(
         "",
         "-t",
-        "--to",
+        "--target",
         help='目标语言，ISO 639 语言代码，支持 -Hans/-Hant/-Cyrl/-Latn 文字标记，如"zh-Hans"、"en"等',
         show_default=False,
     ),
@@ -264,25 +264,25 @@ def main(
     elif not batch:
         texts = [" ".join(texts)]  # 将命令行参数合并为一行
 
-    async def run(from_lang=from_lang, to_lang=to_lang, engine=engine, options=options):
+    async def run(src_lang=src_lang, tgt_lang=tgt_lang, engine=engine, options=options):
         if not Settings.get_config_path().exists():
             Settings.reset()
             typer.echo(f"配置文件已生成在 {Settings.get_config_path()}", err=True)
         settings = Settings.load()
 
-        from_lang = from_lang if from_lang else settings.default_from
+        src_lang = src_lang if src_lang else settings.default_source
 
-        to_lang = to_lang if to_lang else settings.default_to
-        if not to_lang:
+        tgt_lang = tgt_lang if tgt_lang else settings.default_target
+        if not tgt_lang:
             typer.echo(
-                "请指定目标语言（--to）或在配置文件中设置默认目标语言。", err=True
+                "请指定目标语言（-t / --target）或在配置文件中设置默认目标语言。", err=True
             )
             raise typer.Exit(1)
 
         engine = engine.lower() if engine else settings.default_engine
         if not engine:
             typer.echo(
-                "请指定翻译引擎（--engine）或在配置文件中设置默认翻译引擎。", err=True
+                "请指定翻译引擎（-e / --engine）或在配置文件中设置默认翻译引擎。", err=True
             )
             raise typer.Exit(1)
 
@@ -304,13 +304,13 @@ def main(
         translator = Translator(engine, engine_opts)
 
         if batch:
-            results = await translator.translate_batch(texts, from_lang, to_lang)
+            results = await translator.translate_batch(texts, src_lang, tgt_lang)
             for i, (t, r) in enumerate(zip(texts, results)):
                 if i > 0:
                     typer.echo("\n\n" + "=" * 40 + "\n\n")  # 分隔多条结果
                 typer.echo(f"原文：\n{t}\n\n翻译：\n{r}")
         else:
-            result = await translator.translate(texts[0], from_lang, to_lang)
+            result = await translator.translate(texts[0], src_lang, tgt_lang)
             typer.echo(result)
 
     asyncio.run(run())

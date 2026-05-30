@@ -49,22 +49,22 @@ class Translator:
 
         self.cache = Cache()
 
-    async def translate(self, text: str, from_lang: str, to_lang: str) -> str:
-        cached = self.cache.query(text, self.engine.name, from_lang, to_lang)
+    async def translate(self, text: str, src_lang: str, tgt_lang: str) -> str:
+        cached = self.cache.query(text, self.engine.name, src_lang, tgt_lang)
         if cached is not None:
             return cached
-        result = await self.engine.translate(text, from_lang, to_lang)
-        self.cache.insert(text, result, self.engine.name, from_lang, to_lang)
+        result = await self.engine.translate(text, src_lang, tgt_lang)
+        self.cache.insert(text, result, self.engine.name, src_lang, tgt_lang)
         return result
 
     async def translate_batch(
-        self, texts: list[str], from_lang: str, to_lang: str
+        self, texts: list[str], src_lang: str, tgt_lang: str
     ) -> list[str]:
         results: list[str] = []
         misses: list[tuple[int, str]] = []
 
         for idx, text in enumerate(texts):
-            cached = self.cache.query(text, self.engine.name, from_lang, to_lang)
+            cached = self.cache.query(text, self.engine.name, src_lang, tgt_lang)
             if cached is not None:
                 results.append(cached)
             else:
@@ -73,10 +73,10 @@ class Translator:
 
         if misses:
             engine_results = await self.engine.translate_batch(
-                [m[1] for m in misses], from_lang, to_lang
+                [m[1] for m in misses], src_lang, tgt_lang
             )
             for (idx, text), result in zip(misses, engine_results):
                 results[idx] = result
-                self.cache.insert(text, result, self.engine.name, from_lang, to_lang)
+                self.cache.insert(text, result, self.engine.name, src_lang, tgt_lang)
 
         return results

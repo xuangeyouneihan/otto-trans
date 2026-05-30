@@ -1,12 +1,13 @@
 from pathlib import Path
+from typing import Any, ClassVar
+
 import yaml
 from pydantic_settings import BaseSettings
-from typing import ClassVar, Any
 
 DEFAULT_CONFIG_YAML = """\
-default_engine: ""  # 默认翻译引擎
-default_from: auto  # 默认源语言，ISO 639 语言代码，支持 -Hans/-Hant/-Cyrl/-Latn 文字标记，如"zh-Hans"、"en"。auto 表示自动检测
-default_to: ""  # 默认目标语言，ISO 639 语言代码，支持 -Hans/-Hant/-Cyrl/-Latn 文字标记，"zh-Hans"、"en"
+default_engine: ""    # 默认翻译引擎
+default_source: auto  # 默认源语言，ISO 639 语言代码，支持 -Hans/-Hant/-Cyrl/-Latn 文字标记，如"zh-Hans"、"en"。auto 表示自动检测
+default_target: ""    # 默认目标语言，ISO 639 语言代码，支持 -Hans/-Hant/-Cyrl/-Latn 文字标记，"zh-Hans"、"en"
 
 # 引擎配置
 engines:
@@ -18,21 +19,21 @@ engines:
   # OpenAI 相关配置示例
   openai:
     # your-provider:
-    #   endpoint:          # API 端点地址
-    #   api_key:           # API 密钥
-    #   model:             # 模型名称
-    #   prompt_template:   # 自定义提示词模板，支持 {{from_lang}} 和 {{to_lang}} 占位
-    #   thinking:          # 深度思考模式，true 或 false
-    #   reasoning_effort:  # 推理强度，none、minimal、low、medium、high、xhigh 或 max
-    #   temperature:       # 采样温度，0~2，越低越确定
-    #   max_tokens:        # 最大输出 token 数
-    #   top_p:             # 核采样概率，0~1
-    #   top_k:             # top-k 采样，整数，越大越随机
-    #   repetition_penalty: # 重复惩罚，0~2，越大越避免重复
+    #   endpoint:            # API 端点地址
+    #   api_key:             # API 密钥
+    #   model:               # 模型名称
+    #   prompt_template:     # 自定义提示词模板，支持 {{src_lang}} 和 {{tgt_lang}} 占位
+    #   thinking:            # 深度思考模式，true 或 false
+    #   reasoning_effort:    # 推理强度，none、minimal、low、medium、high、xhigh 或 max
+    #   temperature:         # 采样温度，0~2，越低越确定
+    #   max_tokens:          # 最大输出 token 数
+    #   top_p:               # 核采样概率，0~1
+    #   top_k:               # top-k 采样，整数，越大越随机
+    #   repetition_penalty:  # 重复惩罚，0~2，越大越避免重复
 
   # DeepL 配置示例
   deepl:
-    auth_key:              # API 密钥
+    auth_key:             # API 密钥
     paid:                 # 是否使用付费端点，true 或 false，默认 false
     context:              # 上下文信息，帮助模型理解翻译场景
     preserve_formatting:  # 保留原文格式，true 或 false
@@ -40,15 +41,18 @@ engines:
     model_type:           # 模型类型，quality_optimized、latency_optimized 或 prefer_quality_optimized
 """
 
+
 class Settings(BaseSettings):
-    model_config = {"extra": "allow"}   # 允许 YAML 有未声明的字段
+    model_config = {"extra": "allow"}  # 允许 YAML 有未声明的字段
 
     default_engine: str = ""
-    default_from: str = "auto"
-    default_to: str = ""
+    default_source: str = "auto"
+    default_target: str = ""
     engines: dict[str, Any] = {}
 
-    _config_path: ClassVar[Path] = Path.home() / ".config" / "otto-trans" / "config.yaml"
+    _config_path: ClassVar[Path] = (
+        Path.home() / ".config" / "otto-trans" / "config.yaml"
+    )
 
     @classmethod
     def get_config_path(cls) -> Path:
@@ -59,8 +63,8 @@ class Settings(BaseSettings):
         config = yaml.safe_load(cls._config_path.read_text(encoding="utf-8")) or {}
         settings = cls(**config)
         settings.default_engine = settings.default_engine.lower().strip()
-        settings.default_from = settings.default_from.lower().strip()
-        settings.default_to = settings.default_to.lower().strip()
+        settings.default_source = settings.default_source.lower().strip()
+        settings.default_target = settings.default_target.lower().strip()
         return settings
 
     @classmethod

@@ -1,13 +1,16 @@
-import sqlite3
-import base64
 import atexit
+import base64
+import sqlite3
 from pathlib import Path
+
 
 def b64encode(s: str) -> str:
     return base64.b64encode(s.encode(encoding="utf-8")).decode(encoding="utf-8")
 
+
 def b64decode(s: str) -> str:
     return base64.b64decode(s.encode(encoding="utf-8")).decode(encoding="utf-8")
+
 
 class Cache:
     _instance = None
@@ -16,7 +19,7 @@ class Cache:
 
     def __new__(cls, *args, **kwargs):
         if not cls._instance:
-            cls._instance = super().__new__(cls)
+            cls._instance = super().__new__(cls, *args, **kwargs)
         return cls._instance
 
     def __init__(self):
@@ -30,22 +33,30 @@ class Cache:
     def __del__(self):
         self._conn.close()
 
-    def query(self, key: str, engine: str, from_lang: str, to_lang: str) -> str | None:
+    def query(self, key: str, engine: str, src_lang: str, tgt_lang: str) -> str | None:
         cursor = self._conn.cursor()
         try:
             cursor.execute(
-                f"SELECT target FROM [{b64encode(engine)}] WHERE source = ? AND from_lang = ? AND to_lang = ?",
-                (b64encode(key), b64encode(from_lang), b64encode(to_lang))
+                f"SELECT target FROM [{b64encode(engine)}] WHERE source = ? AND src_lang = ? AND tgt_lang = ?",
+                (b64encode(key), b64encode(src_lang), b64encode(tgt_lang)),
             )
         except sqlite3.OperationalError:
-            return None          # 表不存在 = 无缓存
+            return None  # 表不存在 = 无缓存
         result = cursor.fetchone()
         return b64decode(result[0]) if result else None
 
-    def insert(self, key: str, value: str, engine: str, from_lang: str, to_lang: str):
+    def insert(self, key: str, value: str, engine: str, src_lang: str, tgt_lang: str):
         cursor = self._conn.cursor()
         self._create_table(b64encode(engine))
-        cursor.execute(f"INSERT OR REPLACE INTO [{b64encode(engine)}] (source, target, from_lang, to_lang) VALUES (?, ?, ?, ?)", (b64encode(key), b64encode(value), b64encode(from_lang), b64encode(to_lang)))
+        cursor.execute(
+            f"INSERT OR REPLACE INTO [{b64encode(engine)}] (source, target, src_lang, tgt_lang) VALUES (?, ?, ?, ?)",
+            (
+                b64encode(key),
+                b64encode(value),
+                b64encode(src_lang),
+                b64encode(tgt_lang),
+            ),
+        )
         self._conn.commit()
 
     def _create_table(self, name: str):
@@ -54,9 +65,9 @@ class Cache:
             CREATE TABLE IF NOT EXISTS [{name}] (
                 source TEXT NOT NULL,
                 target TEXT NOT NULL,
-                from_lang TEXT NOT NULL,
-                to_lang TEXT NOT NULL,
-                PRIMARY KEY (source, from_lang, to_lang)
+                src_lang TEXT NOT NULL,
+                tgt_lang TEXT NOT NULL,
+                PRIMARY KEY (source, src_lang, tgt_lang)
             )
         """)
         self._conn.commit()

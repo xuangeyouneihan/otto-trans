@@ -14,7 +14,7 @@ class OpenAIAPIError(Exception):
 class OpenAITranslator(BaseTranslator):
     default_prompt_template = (
         "你是一个专业的翻译助手，负责将文本从一种语言翻译成另一种语言。"
-        "将以下文本从 {from_lang} 翻译成 {to_lang}。"
+        "将以下文本从 {src_lang} 翻译成 {tgt_lang}。"
         "对于单个词汇，直接给出最常用的翻译，不要列举多种释义。"
         "只返回翻译后的文本，不要有解释、备注或引号。"
     )
@@ -159,7 +159,7 @@ class OpenAITranslator(BaseTranslator):
         top_p: float | None = None,
         top_k: int | None = None,
         repetition_penalty: float | None = None,
-        **kwargs
+        **kwargs,
     ):
         if kwargs:
             raise ValueError(f"未知参数: {list(kwargs.keys())}")
@@ -171,13 +171,23 @@ class OpenAITranslator(BaseTranslator):
             prompt_template if prompt_template else self.default_prompt_template
         )
         self.thinking = thinking
+        if reasoning_effort is not None and reasoning_effort not in ["none", "minimal", "low", "medium", "high", "xhigh", "max"]:
+            raise ValueError("reasoning_effort 必须是以下值之一: none、minimal、low、medium、high、xhigh、max")
         self.reasoning_effort = reasoning_effort
         if temperature is not None and not (0 <= temperature <= 2):
             raise ValueError("temperature 必须在 0 到 2 之间")
         self.temperature = temperature
+        if max_tokens is not None and max_tokens < 1:
+            raise ValueError("max_tokens 必须大于或等于 1")
         self.max_tokens = max_tokens
+        if top_p is not None and not (0 <= top_p <= 1):
+            raise ValueError("top_p 必须在 0 到 1 之间")
         self.top_p = top_p
+        if top_k is not None and top_k < 1:
+            raise ValueError("top_k 必须大于或等于 1")
         self.top_k = top_k
+        if repetition_penalty is not None and not (0 <= repetition_penalty <= 2):
+            raise ValueError("repetition_penalty 必须在 0 到 2 之间")
         self.repetition_penalty = repetition_penalty
         self._client = httpx.AsyncClient(
             follow_redirects=True,
@@ -195,10 +205,10 @@ class OpenAITranslator(BaseTranslator):
     def name(self) -> str:
         return f"openai:{self.model}"
 
-    async def translate(self, text: str, from_lang: str, to_lang: str) -> str:
-        if to_lang.lower() == "auto":
-            raise UnsupportedLanguageError.for_engine(self.name, from_lang, to_lang)
-        payload = self._build_payload(text, from_lang, to_lang)
+    async def translate(self, text: str, src_lang: str, tgt_lang: str) -> str:
+        if tgt_lang.lower() == "auto":
+            raise UnsupportedLanguageError.for_engine(self.name, src_lang, tgt_lang)
+        payload = self._build_payload(text, src_lang, tgt_lang)
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.api_key}",
@@ -213,11 +223,11 @@ class OpenAITranslator(BaseTranslator):
         body = response.json()
         return body["choices"][0]["message"]["content"].strip()
 
-    def _build_payload(self, text: str, from_lang: str, to_lang: str) -> dict:
-        from_display = self._lang_display(from_lang)
-        to_display = self._lang_display(to_lang)
-        prompt = self.prompt_template.format(from_lang=from_display, to_lang=to_display)
-        request: dict[str, Any] = {
+    def _build_payload(self, text: str, src_lang: str, tgt_lang: str) -> dict:
+        src_display = self._lang_display(src_lang)
+        tgt_display = self._lang_display(tgt_lang)
+        prompt = self.prompt_template.format(src_lang=src_display, tgt_lang=tgt_display)
+        payload: dict[str, Any] = {
             "messages": [
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": text},
@@ -225,17 +235,17 @@ class OpenAITranslator(BaseTranslator):
             "model": self.model,
         }
         if self.thinking is not None:
-            request["thinking"] = {"type": "enabled" if self.thinking else "disabled"}
+            payload["thinking"] = {"type": "enabled" if self.thinking else "disabled"}
         if self.reasoning_effort is not None:
-            request["reasoning_effort"] = self.reasoning_effort
+            payload["reasoning_effort"] = self.reasoning_effort
         if self.temperature is not None:
-            request["temperature"] = self.temperature
+            payload["temperature"] = self.temperature
         if self.max_tokens is not None:
-            request["max_tokens"] = self.max_tokens
+            payload["max_tokens"] = self.max_tokens
         if self.top_p is not None:
-            request["top_p"] = self.top_p
+            payload["top_p"] = self.top_p
         if self.top_k is not None:
-            request["top_k"] = self.top_k
+            payload["top_k"] = self.top_k
         if self.repetition_penalty is not None:
-            request["repetition_penalty"] = self.repetition_penalty
-        return request
+            payload["repetition_penalty"] = self.repetition_penalty
+        return payload

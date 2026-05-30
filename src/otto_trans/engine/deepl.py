@@ -20,7 +20,7 @@ class DeepLTranslator(BaseTranslator):
         "https://api-free.deepl.com/v3/languages?resource=translate_text"
     )
 
-    _FROM_LANG_MAP: dict[str, str] = {
+    _SRC_LANG_MAP: dict[str, str] = {
         "DE-DE": "DE",
         "EN-GB": "EN",
         "EN-US": "EN",
@@ -32,7 +32,7 @@ class DeepLTranslator(BaseTranslator):
         "ZH-HANT": "ZH",
     }
 
-    _TO_LANG_MAP: dict[str, str] = {}
+    _TGT_LANG_MAP: dict[str, str] = {}
 
     def __init__(
         self,
@@ -65,14 +65,14 @@ class DeepLTranslator(BaseTranslator):
     def name(self) -> str:
         return "deepl"
 
-    async def translate(self, text: str, from_lang: str, to_lang: str) -> str:
-        return (await self.translate_batch([text], from_lang, to_lang))[0]
+    async def translate(self, text: str, src_lang: str, tgt_lang: str) -> str:
+        return (await self.translate_batch([text], src_lang, tgt_lang))[0]
 
     async def translate_batch(
-        self, texts: list[str], from_lang: str, to_lang: str
+        self, texts: list[str], src_lang: str, tgt_lang: str
     ) -> list[str]:
-        (from_lang, to_lang) = self._normalize_lang(from_lang, to_lang)
-        payload = self._build_payload(texts, from_lang, to_lang)
+        (src_lang, tgt_lang) = self._normalize_lang(src_lang, tgt_lang)
+        payload = self._build_payload(texts, src_lang, tgt_lang)
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"DeepL-Auth-Key {self.auth_key}",
@@ -91,23 +91,34 @@ class DeepLTranslator(BaseTranslator):
                 or "Value for 'target_lang' not supported."
                 in response.json().get("message", "")
             ):
-                languages = await self._fetch_supported_languages()
+                src_languages = None
+                tgt_languages = None
+                try:
+                    (
+                        src_languages,
+                        tgt_languages,
+                    ) = await self._fetch_supported_languages()
+                except Exception:
+                    raise UnsupportedLanguageError.for_engine(
+                        self.name, src_lang, tgt_lang
+                    )
                 raise UnsupportedLanguageError.for_engine(
-                    self.name, from_lang, to_lang, languages[0], languages[1]
+                    self.name, src_lang, tgt_lang, src_languages, tgt_languages
                 ) from e
+
             raise DeepLAPIError(
                 f"DeepL API 返回错误: {response.status_code} {response.text}"
             ) from e
         body = response.json()
         return [t["text"] for t in body["translations"]]
 
-    def _build_payload(self, texts: list[str], from_lang: str, to_lang: str) -> dict:
+    def _build_payload(self, texts: list[str], src_lang: str, tgt_lang: str) -> dict:
         payload: dict[str, Any] = {
             "text": texts,
-            "target_lang": to_lang,
+            "target_lang": tgt_lang,
         }
-        if from_lang != "AUTO":
-            payload["source_lang"] = from_lang
+        if src_lang != "AUTO":
+            payload["source_lang"] = src_lang
         if self.context:
             payload["context"] = self.context
         if self.preserve_formatting is not None:
@@ -118,11 +129,11 @@ class DeepLTranslator(BaseTranslator):
             payload["model_type"] = self.model_type
         return payload
 
-    def _normalize_lang(self, from_lang: str, to_lang: str) -> tuple[str, str]:
-        """将标准语言代码转为有道 API 代码，不在表中则报错。"""
-        from_code = self._FROM_LANG_MAP.get(from_lang.upper())
-        to_code = self._TO_LANG_MAP.get(to_lang.upper())
-        return (from_code or from_lang.upper(), to_code or to_lang.upper())
+    def _normalize_lang(self, src_lang: str, tgt_lang: str) -> tuple[str, str]:
+        """将部分语言代码转为 DeepL API 代码。"""
+        src_code = self._SRC_LANG_MAP.get(src_lang.upper())
+        tgt_code = self._TGT_LANG_MAP.get(tgt_lang.upper())
+        return (src_code or src_lang.upper(), tgt_code or tgt_lang.upper())
 
     async def _fetch_supported_languages(self) -> tuple[list[str], list[str]]:
         # Implementation for fetching supported languages
