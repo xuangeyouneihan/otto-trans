@@ -12,7 +12,7 @@ class OpenAIAPIError(Exception):
 
 
 class OpenAITranslator(BaseTranslator):
-    default_prompt_template = (
+    _default_prompt_template = (
         "你是一个专业的翻译助手，负责将文本从一种语言翻译成另一种语言。"
         "将以下文本从 {src_lang} 翻译成 {tgt_lang}。"
         "对于单个词汇，直接给出最常用的翻译，不要列举多种释义。"
@@ -142,9 +142,65 @@ class OpenAITranslator(BaseTranslator):
         "auto": "自动识别",
     }
 
-    def _lang_display(self, code: str) -> str:
-        """将语言代码转为提示词用的中文名称，未知代码原样返回。"""
-        return self._LANG_DISPLAY.get(code, code)
+    friendly_name = "OpenAI 翻译"
+
+    options: dict[str, dict[str, str | bool]] = {
+        "endpoint": {
+            "type": "str",
+            "description": "API 端点地址",
+            "required": True,
+        },
+        "api_key": {
+            "type": "str",
+            "description": "API 密钥",
+            "required": True
+        },
+        "model": {
+            "type": "str",
+            "description": "模型名称",
+            "required": True,
+        },
+        "prompt_template": {
+            "type": "str",
+            "description": "自定义提示词 模板，支持 {src_lang} 和 {tgt_lang} 占位",
+            "required": False,
+        },
+        "thinking": {
+            "type": "bool",
+            "description": "深度思考模式，true 或 false",
+            "required": False,
+        },
+        "reasoning_effort": {
+            "type": "str",
+            "description": "推理强度，none、minimal、low、medium、high、xhigh 或 max",
+            "required": False,
+        },
+        "temperature": {
+            "type": "float",
+            "description": "采样温度，0~2，越低越确定",
+            "required": False,
+        },
+        "max_tokens": {
+            "type": "int",
+            "description": "最大输出 token 数，必须大于或等于 1",
+            "required": False,
+        },
+        "top_p": {
+            "type": "float",
+            "description": "核采样概率，0~1，越低越确定",
+            "required": False,
+        },
+        "top_k": {
+            "type": "int",
+            "description": "top-k 采样，整数，越大越随机",
+            "required": False,
+        },
+        "repetition_penalty": {
+            "type": "float",
+            "description": "重复惩罚，0~2，越大越避免重复",
+            "required": False,
+        },
+    }
 
     def __init__(
         self,
@@ -159,6 +215,7 @@ class OpenAITranslator(BaseTranslator):
         top_p: float | None = None,
         top_k: int | None = None,
         repetition_penalty: float | None = None,
+        config_name: str | None = None,
         **kwargs,
     ):
         if kwargs:
@@ -168,11 +225,21 @@ class OpenAITranslator(BaseTranslator):
         self.api_key = api_key
         self.model = model
         self.prompt_template = (
-            prompt_template if prompt_template else self.default_prompt_template
+            prompt_template if prompt_template else self._default_prompt_template
         )
         self.thinking = thinking
-        if reasoning_effort is not None and reasoning_effort not in ["none", "minimal", "low", "medium", "high", "xhigh", "max"]:
-            raise ValueError("reasoning_effort 必须是以下值之一: none、minimal、low、medium、high、xhigh、max")
+        if reasoning_effort is not None and reasoning_effort not in [
+            "none",
+            "minimal",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max",
+        ]:
+            raise ValueError(
+                "reasoning_effort 必须是以下值之一: none、minimal、low、medium、high、xhigh、max"
+            )
         self.reasoning_effort = reasoning_effort
         if temperature is not None and not (0 <= temperature <= 2):
             raise ValueError("temperature 必须在 0 到 2 之间")
@@ -207,7 +274,9 @@ class OpenAITranslator(BaseTranslator):
 
     async def translate(self, text: str, src_lang: str, tgt_lang: str) -> str:
         if tgt_lang.lower() == "auto":
-            raise UnsupportedLanguageError.for_engine(self.name, src_lang, tgt_lang)
+            raise UnsupportedLanguageError.for_engine(
+                f"{self.friendly_name}（{self.name}）", src_lang, tgt_lang
+            )
         payload = self._build_payload(text, src_lang, tgt_lang)
         headers = {
             "Content-Type": "application/json",
@@ -249,3 +318,7 @@ class OpenAITranslator(BaseTranslator):
         if self.repetition_penalty is not None:
             payload["repetition_penalty"] = self.repetition_penalty
         return payload
+
+    def _lang_display(self, code: str) -> str:
+        """将语言代码转为提示词用的中文名称，未知代码原样返回。"""
+        return self._LANG_DISPLAY.get(code, code)

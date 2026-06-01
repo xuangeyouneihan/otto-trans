@@ -1,4 +1,5 @@
 import asyncio
+import shutil
 import sys
 
 import typer
@@ -7,136 +8,123 @@ from .config.settings import Settings
 from .core.cache import Cache
 from .core.translator import Translator
 
-# 帮助后附加文本里留一个占位，运行时填入配置路径
-HELP_EPILOG = f"""
-配置文件: {Settings.get_config_path()}
 
-首次运行时自动生成默认配置。
+def _build_help_epilog() -> str:
+    """动态生成帮助信息尾部，包含所有已注册引擎及其选项。"""
+    if not Translator.engines:
+        Translator.register_engines()
+
+    cols, _ = shutil.get_terminal_size()
+
+    lines = [
+        f"配置文件: {Settings.get_config_path()}",
+        "",
+        "首次运行时自动生成默认配置。"
+    ]
+
+    lines += [""] * 3 + ["─" * (cols - 2)] + [""] * 3
+
+    # 支持的引擎
+    max_name = max((len(n) for n in Translator.engines), default=0)
+    lines.append("支持的引擎：")
+    lines += [""] * 3
+    for name in sorted(Translator.engines):
+        cls = Translator.engines[name]
+        req = [k for k, v in cls.options.items() if v["required"]]
+        friendly = cls.friendly_name or name
+        lines.append(f"  {name.ljust(max_name)}  {friendly}（需 {'、'.join(req)}）")
+        lines.append("")
+
+    lines += [""] * 3 + ["─" * (cols - 2)] + [""] * 3
+
+    # 引擎选项
+    lines.append("引擎选项（-o key=value），会覆盖配置文件中的对应字段：")
+    for name in sorted(Translator.engines):
+        lines += [""] * 5
+        cls = Translator.engines[name]
+        friendly = cls.friendly_name or name
+        max_opt = max((len(k) for k in cls.options), default=0)
+        lines.append(f"  {friendly}（{name}）：")
+        lines += [""] * 3
+        for opt_name, opt_meta in cls.options.items():
+            lines.append(f"    {opt_name.ljust(max_opt)}  {opt_meta['description']}")
+            lines.append("")
+    
+    lines += [""] * 3 + ["─" * (cols - 2)] + [""] * 3
+
+    # 静态尾部
+    static = [
+        "逐行模式：",
+        "",
+        "",
+        "",
+        "  不提供文本参数时，程序进入逐行输入模式。每行独立对待，",
+        "",
+        "  输入空行结束。-b / --batch 模式下每行分别翻译，否则合并为一段。",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "管道模式：",
+        "",
+        "",
+        "",
+        "  可通过管道或 heredoc 传入文本，每行独立对待。",
+        "",
+        "  -b / --batch 模式下每行分别翻译，否则合并为一段。",
+        "",
+        "",
+        "",
+        "─" * (cols - 2),
+        "",
+        "",
+        "",
+        "示例：",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "  $ otto -e youdao -o app_key=xxx -o app_secret=yyy -t zh-Hans hello",
+        "",
+        "",
+        "",
+        "  $ otto -e openai:deepseek -s en -t zh-Hans hello",
+        "",
+        "",
+        "",
+        "  $ otto -t zh-Hans -b",
+        "",
+        "  请输入要翻译的文本（输入空行结束）：",
+        "",
+        "  hello",
+        "",
+        "  world",
+        "",
+        "  [回车]",
+        "",
+        "",
+        "",
+        "  $ otto -e openai:deepseek -t zh-Hans << EOF",
+        "",
+        "  > hello",
+        "",
+        "  > world",
+        "",
+        "  > EOF",
+        "",
+        "",
+        "",
+        "  $ otto --reset-config",
+    ]
+    lines.extend(static)
+    return "\n".join(lines)
 
-
-
-支持的引擎：
-
-  youdao              有道翻译（需 app_key + app_secret）
-
-  openai              OpenAI 兼容提供商，优先取配置中第一个
-
-  openai:<provider>   指定 OpenAI 兼容提供商（如 openai:deepseek）
-
-  deepl               DeepL 翻译（需 api_key）
-
-
-
-引擎选项（-o key=value），会覆盖配置文件中的对应字段：
-
-
-
-  有道：
-
-    app_key              应用 ID
-
-    app_secret           应用密钥
-
-
-
-  OpenAI / 兼容接口：
-
-    endpoint             API 端点地址
-
-    api_key              API 密钥
-
-    model                模型名称
-
-    prompt_template      自定义翻译提示词模板，支持 {{src_lang}} 和 {{tgt_lang}} 占位
-
-    thinking             深度思考模式，true 或 false
-
-    reasoning_effort     推理强度，none、minimal、low、medium、high、xhigh 或 max
-
-    temperature          采样温度，0~2，越低越确定
-
-    max_tokens           最大输出 token 数
-
-    top_p                核采样概率，0~1
-
-    top_k                top-k 采样，整数，越大越随机
-
-    repetition_penalty   重复惩罚，0~2，越大越避免重复
-
-
-
-  DeepL：
-
-    auth_key             API 密钥
-
-    paid                 是否使用付费端点，true 或 false，默认 false
-
-    context              上下文信息，帮助模型理解翻译场景
-
-    preserve_formatting  保留原文格式，true 或 false
-
-    formality            正式程度，default、more、less、prefer_more 或 prefer_less
-
-    model_type           模型类型，quality_optimized、latency_optimized 或 prefer_quality_optimized
-
-
-
-逐行模式：
-
-  不提供文本参数时，程序进入逐行输入模式。每行独立对待，
-
-  输入空行结束。-b / --batch 模式下每行分别翻译，否则合并为一段。
-
-
-
-管道模式：
-
-  可通过管道或 heredoc 传入文本，每行独立对待。
-
-  -b / --batch 模式下每行分别翻译，否则合并为一段。
-
-
-
-示例：
-
-
-
-  $ otto -e youdao -o app_key=xxx -o app_secret=yyy -t zh-Hans hello
-
-
-
-  $ otto -e openai:deepseek -s en -t zh-Hans hello
-
-
-
-  $ otto -t zh-Hans -b
-
-    请输入要翻译的文本（输入空行结束）：
-
-  > hello
-
-  > world
-
-  > [回车]
-
-
-
-  $ otto -e openai:deepseek -t zh-Hans << EOF
-
-  > hello
-
-  > world
-
-  > EOF
-
-
-
-  $ otto --reset-config
-"""
 
 app = typer.Typer(
     context_settings={"help_option_names": ["-h", "-?", "--help"]},
-    epilog=HELP_EPILOG,
+    epilog=_build_help_epilog(),
     add_completion=False,
 )
 
@@ -153,46 +141,9 @@ def _read_lines(prompt: str) -> list[str]:
     return lines
 
 
-def _parse_value(raw: str):
-    """将 CLI 字符串转为 Python 类型，模拟 YAML 的类型推断"""
-    low = raw.lower()
-    # 布尔
-    if low in (
-        "true",
-        "false",
-        "yes",
-        "no",
-        "on",
-        "off",
-        "enable",
-        "disable",
-        "enabled",
-        "disabled",
-    ):
-        return low in ("true", "yes", "on", "enable", "enabled")
-    # # null，启用会和 OpenAI API 的参数冲突，暂不启用
-    # if low in ("null", "none", ""):
-    #     return None
-    # null
-    if low in (""):
-        return None
-    # 整数
-    try:
-        return int(raw)
-    except ValueError:
-        pass
-    # 浮点
-    try:
-        return float(raw)
-    except ValueError:
-        pass
-    # 兜底：保留字符串
-    return raw
-
-
 @app.command(
     context_settings={"help_option_names": ["-h", "-?", "--help"]},
-    epilog=HELP_EPILOG,
+    epilog=_build_help_epilog(),
 )
 def main(
     texts: list[str] = typer.Argument([], help="要翻译的文本", show_default=False),
@@ -275,29 +226,34 @@ def main(
         tgt_lang = tgt_lang if tgt_lang else settings.default_target
         if not tgt_lang:
             typer.echo(
-                "请指定目标语言（-t / --target）或在配置文件中设置默认目标语言。", err=True
+                "请指定目标语言（-t / --target）或在配置文件中设置默认目标语言。",
+                err=True,
             )
             raise typer.Exit(1)
 
         engine = engine.lower() if engine else settings.default_engine
         if not engine:
             typer.echo(
-                "请指定翻译引擎（-e / --engine）或在配置文件中设置默认翻译引擎。", err=True
+                "请指定翻译引擎（-e / --engine）或在配置文件中设置默认翻译引擎。",
+                err=True,
             )
             raise typer.Exit(1)
 
-        base_opts = settings.engines.get(engine, {})
-        cli_opts = {
-            k: _parse_value(v) for k, v in (opt.split("=", 1) for opt in options)
-        }
+        cli_opts = {k: v for k, v in (opt.split("=", 1) for opt in options)}
 
-        if engine.startswith("openai"):
-            provider = engine.split(":", 1)[1] if ":" in engine else None
-            yaml_opts = settings.engines.get(engine.split(":")[0], {}) or {}
-            if provider:
-                base_opts = yaml_opts.get(provider, {})
-            else:
-                base_opts = next(iter(yaml_opts.values()), {})
+        base_opts = settings.engines.get(engine.split(":")[0], {})
+        config = engine.split(":", 1)[1] if ":" in engine else None
+        if config:
+            # 用户指定配置时取对应配置
+            base_opts = base_opts.get(config, {}) if isinstance(base_opts, dict) else {}
+            base_opts["config_name"] = config
+        elif isinstance(base_opts, dict):
+            # 用户未指定配置时若有嵌套配置，取第一个非空配置
+            configs = {k: v for k, v in base_opts.items() if isinstance(v, dict) and v}
+            if configs:
+                config = next(iter(configs.keys()))
+                base_opts = base_opts[config]
+                base_opts["config_name"] = config
 
         engine_opts = {**base_opts, **cli_opts}
 
@@ -305,9 +261,10 @@ def main(
 
         if batch:
             results = await translator.translate_batch(texts, src_lang, tgt_lang)
+            cols, _ = shutil.get_terminal_size()
             for i, (t, r) in enumerate(zip(texts, results)):
                 if i > 0:
-                    typer.echo("\n\n" + "=" * 40 + "\n\n")  # 分隔多条结果
+                    typer.echo("\n\n" + "─" * cols + "\n\n")  # 分隔多条结果
                 typer.echo(f"原文：\n{t}\n\n翻译：\n{r}")
         else:
             result = await translator.translate(texts[0], src_lang, tgt_lang)

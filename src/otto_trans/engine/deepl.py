@@ -12,11 +12,11 @@ class DeepLAPIError(Exception):
 
 
 class DeepLTranslator(BaseTranslator):
-    deepl_url = "https://api.deepl.com/v2/translate"
-    deepl_languages_url = "https://api.deepl.com/v3/languages?resource=translate_text"
+    _deepl_url = "https://api.deepl.com/v2/translate"
+    _deepl_languages_url = "https://api.deepl.com/v3/languages?resource=translate_text"
 
-    deepl_url_free = "https://api-free.deepl.com/v2/translate"
-    deepl_languages_url_free = (
+    _deepl_url_free = "https://api-free.deepl.com/v2/translate"
+    _deepl_languages_url_free = (
         "https://api-free.deepl.com/v3/languages?resource=translate_text"
     )
 
@@ -34,6 +34,41 @@ class DeepLTranslator(BaseTranslator):
 
     _TGT_LANG_MAP: dict[str, str] = {}
 
+    friendly_name = "DeepL 翻译"
+
+    options: dict[str, dict[str, str | bool]] = {
+        "auth_key": {
+            "type": "str",
+            "description": "API 密钥",
+            "required": True
+        },
+        "paid": {
+            "type": "bool",
+            "description": "是否使用付费端点，true 或 false，默认 false",
+            "required": False,
+        },
+        "context": {
+            "type": "str",
+            "description": "上下文信息，帮助模型理解翻译场景",
+            "required": False,
+        },
+        "preserve_formatting": {
+            "type": "bool",
+            "description": "保留原文格式，true 或 false",
+            "required": False,
+        },
+        "formality": {
+            "type": "str",
+            "description": "正式程度，default、more、less、prefer_more 或 prefer_less",
+            "required": False,
+        },
+        "model_type": {
+            "type": "str",
+            "description": "模型类型，quality_optimized、latency_optimized 或 prefer_quality_optimized",
+            "required": False,
+        },
+    }
+
     def __init__(
         self,
         auth_key: str,
@@ -42,6 +77,7 @@ class DeepLTranslator(BaseTranslator):
         preserve_formatting: bool | None = None,
         formality: str | None = None,
         model_type: str | None = None,
+        config_name: str | None = None,
         **kwargs,
     ):
         if kwargs:
@@ -53,6 +89,7 @@ class DeepLTranslator(BaseTranslator):
         self.preserve_formatting = preserve_formatting
         self.formality = formality
         self.model_type = model_type
+        self.config_name = config_name
         self._client = httpx.AsyncClient(follow_redirects=True)
 
     async def __aenter__(self):
@@ -63,6 +100,8 @@ class DeepLTranslator(BaseTranslator):
 
     @property
     def name(self) -> str:
+        if self.config_name:
+            return f"deepl:{self.config_name}"
         return "deepl"
 
     async def translate(self, text: str, src_lang: str, tgt_lang: str) -> str:
@@ -78,7 +117,7 @@ class DeepLTranslator(BaseTranslator):
             "Authorization": f"DeepL-Auth-Key {self.auth_key}",
         }
         response = await self._client.post(
-            self.deepl_url if self.paid else self.deepl_url_free,
+            self._deepl_url if self.paid else self._deepl_url_free,
             json=payload,
             headers=headers,
         )
@@ -100,10 +139,16 @@ class DeepLTranslator(BaseTranslator):
                     ) = await self._fetch_supported_languages()
                 except Exception:
                     raise UnsupportedLanguageError.for_engine(
-                        self.name, src_lang, tgt_lang
+                        f"{self.friendly_name}（{self.name}）",
+                        src_lang,
+                        tgt_lang,
                     )
                 raise UnsupportedLanguageError.for_engine(
-                    self.name, src_lang, tgt_lang, src_languages, tgt_languages
+                    f"{self.friendly_name}（{self.name}）",
+                    src_lang,
+                    tgt_lang,
+                    src_languages,
+                    tgt_languages
                 ) from e
 
             raise DeepLAPIError(
@@ -142,7 +187,7 @@ class DeepLTranslator(BaseTranslator):
             "Authorization": f"DeepL-Auth-Key {self.auth_key}",
         }
         response = await self._client.get(
-            self.deepl_languages_url if self.paid else self.deepl_languages_url_free,
+            self._deepl_languages_url if self.paid else self._deepl_languages_url_free,
             headers=headers,
         )
         try:

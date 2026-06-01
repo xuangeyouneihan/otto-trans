@@ -1,51 +1,76 @@
+from importlib.metadata import entry_points
+from typing import cast
+import sys
+
 from ..engine.base import BaseTranslator
 from .cache import Cache
 
 
 class Translator:
-    engine: BaseTranslator
+    engines: dict[str, type[BaseTranslator]] = {}
+
+    _TYPE_CHECKERS = {
+        "str": str,
+        "bool": bool,
+        "int": int,
+        "float": float,
+        "list": list,
+        "tuple": tuple,
+        "set": set,
+        "dict": dict,
+    }
+
+    @classmethod
+    def register_engines(cls):
+        """注册内置翻译引擎并动态发现可用的翻译引擎，返回它们的名称列表。"""
+
+        if cls.engines:
+            return
+
+        from ..engine.deepl import DeepLTranslator
+        from ..engine.openai import OpenAITranslator
+        from ..engine.youdao import YoudaoTranslator
+        cls.engines["youdao"] = cast(type[BaseTranslator], YoudaoTranslator)
+        cls.engines["openai"] = cast(type[BaseTranslator], OpenAITranslator)
+        cls.engines["deepl"] = cast(type[BaseTranslator], DeepLTranslator)
+
+        for entry in entry_points(group="otto_trans.engine"):
+            try:
+                cls.engines[entry.name] = cast(type[BaseTranslator], entry.load())
+            except Exception as e:
+                print(f"加载翻译引擎 {entry.name} 时出错: {e}", file=sys.stderr)
 
     def __init__(self, engine: str, options: dict | None = None):
         options = options or {}
 
-        match engine.lower():
-            case "youdao":
-                from ..engine.youdao import YoudaoTranslator
+        self.register_engines()
 
-                if (
-                    "app_key" not in options
-                    or "app_secret" not in options
-                    or not options["app_key"]
-                    or not options["app_secret"]
-                ):
-                    raise ValueError("使用有道翻译引擎需要提供 app_key 和 app_secret。")
-                self.engine = YoudaoTranslator(**options)
+        base_engine_name = engine.split(":", 1)[0] if ":" in engine else engine
+        engine_cls = self.engines.get(base_engine_name)
+        if not engine_cls:
+            raise ValueError(f"未知的翻译引擎：{engine}")
 
-            case name if name.startswith("openai"):
-                from ..engine.openai import OpenAITranslator
+        for opt_name, opt_meta in engine_cls.options.items():
+            if opt_meta["required"] and opt_name not in options:
+                raise ValueError(f"缺少翻译引擎 {engine} 的必需选项：{opt_name}")
 
-                if (
-                    "endpoint" not in options
-                    or "api_key" not in options
-                    or "model" not in options
-                    or not options["endpoint"]
-                    or not options["api_key"]
-                    or not options["model"]
-                ):
-                    raise ValueError(
-                        "使用 OpenAI 翻译引擎需要提供 endpoint、api_key 和 model。"
-                    )
-                self.engine = OpenAITranslator(**options)  # type: ignore[assignment]
+            expected_type = self._TYPE_CHECKERS.get(str(opt_meta["type"]))
+            if expected_type is None:
+                raise ValueError(f"翻译引擎 {engine} 的选项 {opt_name} 定义了未知的类型：{opt_meta['type']}")
+            if opt_name in options and not isinstance(options[opt_name], expected_type):
+                if isinstance(options[opt_name], str) and expected_type is bool:
+                    # 特殊处理字符串转换为布尔值
+                    if options[opt_name].lower() in ("true", "false", "yes", "no", "on", "off", "enable", "disable", "enabled", "disabled"):
+                        options[opt_name] = options[opt_name].lower() in ("true", "yes", "on", "enable", "enabled")
+                    else:
+                        raise ValueError(f"翻译引擎 {engine} 的选项 {opt_name} 应该是布尔值（True/False），实际是字符串：{options[opt_name]}")
+                else:
+                    try:
+                        options[opt_name] = expected_type(options[opt_name])
+                    except Exception:
+                        raise ValueError(f"翻译引擎 {engine} 的选项 {opt_name} 应该是 {expected_type.__name__} 类型，实际是 {type(options[opt_name]).__name__} 类型")
 
-            case "deepl":
-                from ..engine.deepl import DeepLTranslator
-
-                if "auth_key" not in options or not options["auth_key"]:
-                    raise ValueError("使用 DeepL 翻译引擎需要提供 auth_key。")
-                self.engine = DeepLTranslator(**options)  # type: ignore[assignment]
-
-            case _:
-                raise ValueError(f"不支持的翻译引擎：{engine}")
+        self.engine = engine_cls(**options)  # type: ignore[call-arg]
 
         self.cache = Cache()
 

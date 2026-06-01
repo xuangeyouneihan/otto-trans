@@ -14,7 +14,7 @@ class YoudaoAPIError(Exception):
 
 
 class YoudaoTranslator(BaseTranslator):
-    youdao_url = "https://openapi.youdao.com/v2/api"
+    _youdao_url = "https://openapi.youdao.com/v2/api"
 
     # 标准语言代码 → 有道 API 代码（同时用于校验）
     _LANG_MAP: dict[str, str] = {
@@ -140,12 +140,28 @@ class YoudaoTranslator(BaseTranslator):
         "auto": "auto",
     }
 
-    def __init__(self, app_key: str, app_secret: str, **kwargs):
+    friendly_name = "有道翻译"
+
+    options: dict[str, dict[str, str | bool]] = {
+        "app_key": {
+            "type": "str",
+            "description": "应用 ID",
+            "required": True,
+        },
+        "app_secret": {
+            "type": "str",
+            "description": "应用密钥",
+            "required": True,
+        },
+    }
+
+    def __init__(self, app_key: str, app_secret: str, config_name: str | None = None, **kwargs):
         if kwargs:
             raise ValueError(f"未知参数: {list(kwargs.keys())}")
         super().__init__()
         self.app_key = app_key
         self.app_secret = app_secret
+        self.config_name = config_name
         self._client = httpx.AsyncClient(follow_redirects=True)  # 一个实例一个客户端
 
     async def __aenter__(self):
@@ -156,6 +172,8 @@ class YoudaoTranslator(BaseTranslator):
 
     @property
     def name(self) -> str:
+        if self.config_name:
+            return f"youdao:{self.config_name}"
         return "youdao"
 
     def _normalize_lang(self, src_lang: str, tgt_lang: str) -> tuple[str, str]:
@@ -164,7 +182,7 @@ class YoudaoTranslator(BaseTranslator):
         tgt_code = self._LANG_MAP.get(tgt_lang.lower())
         if src_code is None or tgt_code is None or tgt_code == "auto":
             raise UnsupportedLanguageError.for_engine(
-                self.name,
+                f"{self.friendly_name}（{self.name}）",
                 src_lang,
                 tgt_lang,
                 self._supported_languages(),
@@ -222,7 +240,7 @@ class YoudaoTranslator(BaseTranslator):
     async def _request(self, payload: dict) -> httpx.Response:
         # Placeholder implementation - replace with actual API request logic
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
-        return await self._client.post(self.youdao_url, data=payload, headers=headers)
+        return await self._client.post(self._youdao_url, data=payload, headers=headers)
 
     def _sha256(self, sign_str):
         hash_algorithm = hashlib.sha256()

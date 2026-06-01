@@ -1,0 +1,12 @@
+[project]
+name = "engine-plugin"
+description = "otto-trans 的翻译引擎插件模板。"
+dependencies = [
+    "otto-trans>=0.3.0",
+]
+
+# 向 otto-trans 注册翻译引擎插件。
+# 等号左侧：命令行中 -e 使用的引擎名（不含冒号，冒号留给配置选择），保证唯一且不与内置引擎冲突。
+# 等号右侧：`模块路径:类名`，entry_points 自动导入该类。
+[project.entry-points."otto_trans.engine"]
+engine_plugin = "engine_plugin:EnginePlugin"
