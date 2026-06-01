@@ -1,6 +1,6 @@
+import sys
 from importlib.metadata import entry_points
 from typing import cast
-import sys
 
 from ..engine.base import BaseTranslator
 from .cache import Cache
@@ -30,6 +30,7 @@ class Translator:
         from ..engine.deepl import DeepLTranslator
         from ..engine.openai import OpenAITranslator
         from ..engine.youdao import YoudaoTranslator
+
         cls.engines["youdao"] = cast(type[BaseTranslator], YoudaoTranslator)
         cls.engines["openai"] = cast(type[BaseTranslator], OpenAITranslator)
         cls.engines["deepl"] = cast(type[BaseTranslator], DeepLTranslator)
@@ -56,19 +57,46 @@ class Translator:
 
             expected_type = self._TYPE_CHECKERS.get(str(opt_meta["type"]))
             if expected_type is None:
-                raise ValueError(f"翻译引擎 {engine} 的选项 {opt_name} 定义了未知的类型：{opt_meta['type']}")
+                raise ValueError(
+                    f"翻译引擎 {engine} 的选项 {opt_name} 定义了未知的类型：{opt_meta['type']}"
+                )
+            if opt_name in options and options[opt_name] is None:
+                # 可选参数值为 None → 不传给引擎
+                if not opt_meta.get("required", False):
+                    continue
             if opt_name in options and not isinstance(options[opt_name], expected_type):
                 if isinstance(options[opt_name], str) and expected_type is bool:
                     # 特殊处理字符串转换为布尔值
-                    if options[opt_name].lower() in ("true", "false", "yes", "no", "on", "off", "enable", "disable", "enabled", "disabled"):
-                        options[opt_name] = options[opt_name].lower() in ("true", "yes", "on", "enable", "enabled")
+                    if options[opt_name].lower() in (
+                        "true",
+                        "false",
+                        "yes",
+                        "no",
+                        "on",
+                        "off",
+                        "enable",
+                        "disable",
+                        "enabled",
+                        "disabled",
+                    ):
+                        options[opt_name] = options[opt_name].lower() in (
+                            "true",
+                            "yes",
+                            "on",
+                            "enable",
+                            "enabled",
+                        )
                     else:
-                        raise ValueError(f"翻译引擎 {engine} 的选项 {opt_name} 应该是布尔值（True/False），实际是字符串：{options[opt_name]}")
+                        raise ValueError(
+                            f"翻译引擎 {engine} 的选项 {opt_name} 应该是布尔值（True/False），实际是字符串：{options[opt_name]}"
+                        )
                 else:
                     try:
                         options[opt_name] = expected_type(options[opt_name])
                     except Exception:
-                        raise ValueError(f"翻译引擎 {engine} 的选项 {opt_name} 应该是 {expected_type.__name__} 类型，实际是 {type(options[opt_name]).__name__} 类型")
+                        raise ValueError(
+                            f"翻译引擎 {engine} 的选项 {opt_name} 应该是 {expected_type.__name__} 类型，实际是 {type(options[opt_name]).__name__} 类型"
+                        )
 
         self.engine = engine_cls(**options)  # type: ignore[call-arg]
 
