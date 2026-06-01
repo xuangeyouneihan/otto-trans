@@ -27,7 +27,7 @@ class BaseTranslator(ABC):
     @abstractmethod
     def name(self) -> str: ...
 
-    friendly_name: str | None = None  # 可选的用户友好名称
+    friendly_name: str = ""  # 可选的用户友好名称
     options: dict[str, dict[str, str | bool]] = {}
 
     def __init_subclass__(cls, **kwargs):

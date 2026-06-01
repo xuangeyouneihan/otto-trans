@@ -19,7 +19,7 @@ def _build_help_epilog() -> str:
     lines = [
         f"配置文件: {Settings.get_config_path()}",
         "",
-        "首次运行时自动生成默认配置。"
+        "首次运行时自动生成默认配置。",
     ]
 
     lines += [""] * 3 + ["─" * (cols - 2)] + [""] * 3
@@ -31,8 +31,17 @@ def _build_help_epilog() -> str:
     for name in sorted(Translator.engines):
         cls = Translator.engines[name]
         req = [k for k, v in cls.options.items() if v["required"]]
-        friendly = cls.friendly_name or name
-        lines.append(f"  {name.ljust(max_name)}  {friendly}（需 {'、'.join(req)}）")
+        friendly = cls.friendly_name
+        if friendly:
+            if req:
+                lines.append(f"  {name.ljust(max_name)}  {friendly}（需 {'、'.join(req)}）")
+            else:
+                lines.append(f"  {name.ljust(max_name)}  {friendly}")
+        else:
+            if req:
+                lines.append(f"  {name.ljust(max_name)}  （需 {'、'.join(req)}）")
+            else:
+                lines.append(f"  {name.ljust(max_name)}")
         lines.append("")
 
     lines += [""] * 3 + ["─" * (cols - 2)] + [""] * 3
@@ -42,14 +51,17 @@ def _build_help_epilog() -> str:
     for name in sorted(Translator.engines):
         lines += [""] * 5
         cls = Translator.engines[name]
-        friendly = cls.friendly_name or name
+        friendly = cls.friendly_name
         max_opt = max((len(k) for k in cls.options), default=0)
-        lines.append(f"  {friendly}（{name}）：")
+        if friendly:
+            lines.append(f"  {friendly}（{name}）：")
+        else:
+            lines.append(f"  {name}：")
         lines += [""] * 3
         for opt_name, opt_meta in cls.options.items():
             lines.append(f"    {opt_name.ljust(max_opt)}  {opt_meta['description']}")
             lines.append("")
-    
+
     lines += [""] * 3 + ["─" * (cols - 2)] + [""] * 3
 
     # 静态尾部
