@@ -34,14 +34,11 @@ class DeepLTranslator(BaseTranslator):
 
     _TGT_LANG_MAP: dict[str, str] = {}
 
+    engine_name = "deepl"
     friendly_name = "DeepL 翻译"
 
     options: dict[str, dict[str, str | bool]] = {
-        "auth_key": {
-            "type": "str",
-            "description": "API 密钥",
-            "required": True
-        },
+        "auth_key": {"type": "str", "description": "API 密钥", "required": True},
         "paid": {
             "type": "bool",
             "description": "是否使用付费端点，true 或 false，默认 false",
@@ -82,14 +79,31 @@ class DeepLTranslator(BaseTranslator):
     ):
         if kwargs:
             raise ValueError(f"未知参数: {list(kwargs.keys())}")
-        super().__init__()
-        self.auth_key = auth_key
+        super().__init__(config_name=config_name)
+        self.__auth_key = auth_key
         self.paid = paid
         self.context = context
         self.preserve_formatting = preserve_formatting
+        if formality and formality not in (
+            "default",
+            "more",
+            "less",
+            "prefer_more",
+            "prefer_less",
+        ):
+            raise ValueError(
+                f"formality 参数值无效：{formality}，必须是 default、more、less、prefer_more 或 prefer_less"
+            )
         self.formality = formality
+        if model_type and model_type not in (
+            "quality_optimized",
+            "latency_optimized",
+            "prefer_quality_optimized",
+        ):
+            raise ValueError(
+                f"model_type 参数值无效：{model_type}，必须是 quality_optimized、latency_optimized 或 prefer_quality_optimized"
+            )
         self.model_type = model_type
-        self.config_name = config_name
         self._client = httpx.AsyncClient(follow_redirects=True)
 
     async def __aenter__(self):
@@ -97,12 +111,6 @@ class DeepLTranslator(BaseTranslator):
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self._client.aclose()
-
-    @property
-    def name(self) -> str:
-        if self.config_name:
-            return f"deepl:{self.config_name}"
-        return "deepl"
 
     async def translate(self, text: str, src_lang: str, tgt_lang: str) -> str:
         return (await self.translate_batch([text], src_lang, tgt_lang))[0]
@@ -114,7 +122,7 @@ class DeepLTranslator(BaseTranslator):
         payload = self._build_payload(texts, src_lang, tgt_lang)
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"DeepL-Auth-Key {self.auth_key}",
+            "Authorization": f"DeepL-Auth-Key {self.__auth_key}",
         }
         response = await self._client.post(
             self._deepl_url if self.paid else self._deepl_url_free,
@@ -148,7 +156,7 @@ class DeepLTranslator(BaseTranslator):
                     src_lang,
                     tgt_lang,
                     src_languages,
-                    tgt_languages
+                    tgt_languages,
                 ) from e
 
             raise DeepLAPIError(
@@ -184,7 +192,7 @@ class DeepLTranslator(BaseTranslator):
         # Implementation for fetching supported languages
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"DeepL-Auth-Key {self.auth_key}",
+            "Authorization": f"DeepL-Auth-Key {self.__auth_key}",
         }
         response = await self._client.get(
             self._deepl_languages_url if self.paid else self._deepl_languages_url_free,

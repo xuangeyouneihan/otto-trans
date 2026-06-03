@@ -11,25 +11,26 @@ from .core.translator import Translator
 
 def _build_help_epilog() -> str:
     """动态生成帮助信息尾部，包含所有已注册引擎及其选项。"""
-    if not Translator.engines:
-        Translator.register_engines()
+    engines = Translator.engines()
 
     cols, _ = shutil.get_terminal_size()
 
     lines = [
-        f"配置文件: {Settings.get_config_path()}",
+        f"配置文件: {Settings.config_path}",
         "",
         "首次运行时自动生成默认配置。",
+        "" * 3,
+        f"缓存文件: {Cache.db_path}"
     ]
 
     lines += [""] * 3 + ["─" * (cols - 2)] + [""] * 3
 
     # 支持的引擎
-    max_name = max((len(n) for n in Translator.engines), default=0)
+    max_name = max((len(n) for n in engines), default=0)
     lines.append("支持的引擎：")
     lines += [""] * 3
-    for name in sorted(Translator.engines):
-        cls = Translator.engines[name]
+    for name in sorted(engines):
+        cls = engines[name]
         req = [k for k, v in cls.options.items() if v["required"]]
         friendly = cls.friendly_name
         if friendly:
@@ -48,9 +49,9 @@ def _build_help_epilog() -> str:
 
     # 引擎选项
     lines.append("引擎选项（-o key=value），会覆盖配置文件中的对应字段：")
-    for name in sorted(Translator.engines):
+    for name in sorted(engines):
         lines += [""] * 5
-        cls = Translator.engines[name]
+        cls = engines[name]
         friendly = cls.friendly_name
         max_opt = max((len(k) for k in cls.options), default=0)
         if friendly:
@@ -201,12 +202,12 @@ def main(
 
     if reset_config:
         Settings.reset()
-        typer.echo(f"已重置位于 {Settings.get_config_path()} 的配置文件", err=True)
+        typer.echo(f"已重置位于 {Settings.config_path} 的配置文件", err=True)
         raise typer.Exit()
 
     if reset_cache:
         Cache.reset()
-        typer.echo(f"已重置位于 {Cache.get_db_path()} 的缓存", err=True)
+        typer.echo(f"已重置位于 {Cache.db_path} 的缓存", err=True)
         raise typer.Exit()
 
     if not texts:
@@ -228,9 +229,9 @@ def main(
         texts = [" ".join(texts)]  # 将命令行参数合并为一行
 
     async def run(src_lang=src_lang, tgt_lang=tgt_lang, engine=engine, options=options):
-        if not Settings.get_config_path().exists():
+        if not Settings.config_path.exists():
             Settings.reset()
-            typer.echo(f"配置文件已生成在 {Settings.get_config_path()}", err=True)
+            typer.echo(f"配置文件已生成在 {Settings.config_path}", err=True)
         settings = Settings.load()
 
         src_lang = src_lang if src_lang else settings.default_source

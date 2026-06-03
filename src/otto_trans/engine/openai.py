@@ -142,6 +142,7 @@ class OpenAITranslator(BaseTranslator):
         "auto": "自动识别",
     }
 
+    engine_name = "openai"
     friendly_name = "OpenAI 翻译"
 
     options: dict[str, dict[str, str | bool]] = {
@@ -220,9 +221,9 @@ class OpenAITranslator(BaseTranslator):
     ):
         if kwargs:
             raise ValueError(f"未知参数: {list(kwargs.keys())}")
-        super().__init__()
+        super().__init__(config_name=config_name)
         self.endpoint = endpoint
-        self.api_key = api_key
+        self.__api_key = api_key
         self.model = model
         self.prompt_template = (
             prompt_template if prompt_template else self._default_prompt_template
@@ -270,7 +271,7 @@ class OpenAITranslator(BaseTranslator):
 
     @property
     def name(self) -> str:
-        return f"openai:{self.model}"
+        return f"{self.engine_name}:{self.model}"
 
     async def translate(self, text: str, src_lang: str, tgt_lang: str) -> str:
         if tgt_lang.lower() == "auto":
@@ -280,7 +281,7 @@ class OpenAITranslator(BaseTranslator):
         payload = self._build_payload(text, src_lang, tgt_lang)
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}",
+            "Authorization": f"Bearer {self.__api_key}",
         }
         response = await self._client.post(self.endpoint, json=payload, headers=headers)
         try:

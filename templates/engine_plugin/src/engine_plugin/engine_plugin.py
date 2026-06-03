@@ -8,6 +8,7 @@ class EnginePluginError(Exception):
 
 
 class EnginePlugin(BaseTranslator):
+    engine_name = "engine_plugin"  # 可选的引擎标识，建议和 pyproject.toml 中 entry_points 的左侧名称保持一致，保证唯一且不与内置引擎冲突
     friendly_name = "示例引擎插件"  # 可选的用户友好名称
 
     options: dict[str, dict[str, str | bool]] = {
@@ -26,17 +27,18 @@ class EnginePlugin(BaseTranslator):
         # 在这里初始化你的插件，例如创建 API 客户端等
         if kwargs:
             raise ValueError(f"未知参数: {list(kwargs.keys())}")
-        super().__init__()
-        self.api_key = api_key
-        self.config_name = config_name  # CLI 自动传入冒号后的配置名（如 engine_plugin:fast 中的 fast），用于缓存隔离。必须接收此参数，否则会因传入多余参数而报错
+        super().__init__(config_name=config_name)  # 必须接收 config_name 参数或 kwargs
+        self.__api_key = api_key
 
-    @property
-    def name(self) -> str:
-        # 返回插件的名称，用于缓存 key 和日志标识。
-        # 建议和 pyproject.toml 中 entry_points 的左侧名称保持一致，保证唯一且不与内置引擎冲突。
-        if self.config_name:
-            return f"engine_plugin:{self.config_name}"
-        return "engine_plugin"
+    # @property
+    # def name(self) -> str:
+    #     # 返回插件的名称，用于缓存 key 和日志标识。
+    #     # 建议主要部分和 pyproject.toml 中 entry_points 的左侧名称保持一致，保证唯一且不与内置引擎冲突。
+    #     # 可选，默认实现如下
+    #     engine_name = self.engine_name if self.engine_name else type(self).__name__
+    #     if self.config_name:
+    #         return f"{engine_name}:{self.config_name}"
+    #     return engine_name
 
     async def translate(self, text: str, src_lang: str, tgt_lang: str) -> str:
         # 实现翻译逻辑，调用第三方 API 或使用其他方法进行翻译
@@ -54,7 +56,7 @@ class EnginePlugin(BaseTranslator):
     # async def translate_batch(
     #     self, texts: list[str], src_lang: str, tgt_lang: str
     # ) -> list[str]:
-    #     # 批量翻译（可选，默认逐条调用 translate，可覆盖为批量 API 请求优化性能）
+    #     # 批量翻译（可选，默认实现如下，可覆盖为批量 API 请求优化性能）
     #     return await asyncio.gather(*[
     #         self.translate(t, src_lang, tgt_lang) for t in texts
     #     ])

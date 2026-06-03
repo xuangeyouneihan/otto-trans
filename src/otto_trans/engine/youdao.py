@@ -140,6 +140,7 @@ class YoudaoTranslator(BaseTranslator):
         "auto": "auto",
     }
 
+    engine_name = "youdao"
     friendly_name = "有道翻译"
 
     options: dict[str, dict[str, str | bool]] = {
@@ -155,13 +156,14 @@ class YoudaoTranslator(BaseTranslator):
         },
     }
 
-    def __init__(self, app_key: str, app_secret: str, config_name: str | None = None, **kwargs):
+    def __init__(
+        self, app_key: str, app_secret: str, config_name: str | None = None, **kwargs
+    ):
         if kwargs:
             raise ValueError(f"未知参数: {list(kwargs.keys())}")
-        super().__init__()
-        self.app_key = app_key
-        self.app_secret = app_secret
-        self.config_name = config_name
+        super().__init__(config_name=config_name)
+        self.__app_key = app_key
+        self.__app_secret = app_secret
         self._client = httpx.AsyncClient(follow_redirects=True)  # 一个实例一个客户端
 
     async def __aenter__(self):
@@ -169,12 +171,6 @@ class YoudaoTranslator(BaseTranslator):
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self._client.aclose()  # 用完记得关
-
-    @property
-    def name(self) -> str:
-        if self.config_name:
-            return f"youdao:{self.config_name}"
-        return "youdao"
 
     def _normalize_lang(self, src_lang: str, tgt_lang: str) -> tuple[str, str]:
         """将标准语言代码转为有道 API 代码，不在表中则报错。"""
@@ -219,11 +215,11 @@ class YoudaoTranslator(BaseTranslator):
         salt = str(uuid.uuid1())
         curtime = str(int(time.time()))
         sign_str = (
-            self.app_key
+            self.__app_key
             + self._truncate("".join(texts))
             + salt
             + curtime
-            + self.app_secret
+            + self.__app_secret
         )
         sign = self._sha256(sign_str)
         return {
@@ -231,7 +227,7 @@ class YoudaoTranslator(BaseTranslator):
             "to": tgt_lang,
             "signType": "v3",
             "curtime": curtime,
-            "appKey": self.app_key,
+            "appKey": self.__app_key,
             "q": texts,
             "salt": salt,
             "sign": sign,

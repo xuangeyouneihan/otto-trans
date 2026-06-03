@@ -7,7 +7,7 @@ from .cache import Cache
 
 
 class Translator:
-    engines: dict[str, type[BaseTranslator]] = {}
+    _engines: dict[str, type[BaseTranslator]] = {}
 
     _TYPE_CHECKERS = {
         "str": str,
@@ -21,33 +21,35 @@ class Translator:
     }
 
     @classmethod
-    def register_engines(cls):
+    def engines(cls) -> dict[str, type[BaseTranslator]]:
         """注册内置翻译引擎并动态发现可用的翻译引擎，返回它们的名称列表。"""
 
-        if cls.engines:
-            return
+        if cls._engines:
+            return cls._engines
 
         from ..engine.deepl import DeepLTranslator
         from ..engine.openai import OpenAITranslator
         from ..engine.youdao import YoudaoTranslator
 
-        cls.engines["youdao"] = cast(type[BaseTranslator], YoudaoTranslator)
-        cls.engines["openai"] = cast(type[BaseTranslator], OpenAITranslator)
-        cls.engines["deepl"] = cast(type[BaseTranslator], DeepLTranslator)
+        cls._engines["youdao"] = cast(type[BaseTranslator], YoudaoTranslator)
+        cls._engines["openai"] = cast(type[BaseTranslator], OpenAITranslator)
+        cls._engines["deepl"] = cast(type[BaseTranslator], DeepLTranslator)
 
         for entry in entry_points(group="otto_trans.engine"):
             try:
-                cls.engines[entry.name] = cast(type[BaseTranslator], entry.load())
+                cls._engines[entry.name] = cast(type[BaseTranslator], entry.load())
             except Exception as e:
                 print(f"加载翻译引擎 {entry.name} 时出错: {e}", file=sys.stderr)
+
+        return cls._engines
 
     def __init__(self, engine: str, options: dict | None = None):
         options = options or {}
 
-        self.register_engines()
+        self.engines()
 
         base_engine_name = engine.split(":", 1)[0] if ":" in engine else engine
-        engine_cls = self.engines.get(base_engine_name)
+        engine_cls = self._engines.get(base_engine_name)
         if not engine_cls:
             raise ValueError(f"未知的翻译引擎：{engine}")
 
@@ -87,14 +89,14 @@ class Translator:
                             "enabled",
                         )
                     else:
-                        raise ValueError(
+                        raise TypeError(
                             f"翻译引擎 {engine} 的选项 {opt_name} 应该是布尔值（True/False），实际是字符串：{options[opt_name]}"
                         )
                 else:
                     try:
                         options[opt_name] = expected_type(options[opt_name])
                     except Exception:
-                        raise ValueError(
+                        raise TypeError(
                             f"翻译引擎 {engine} 的选项 {opt_name} 应该是 {expected_type.__name__} 类型，实际是 {type(options[opt_name]).__name__} 类型"
                         )
 

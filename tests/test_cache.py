@@ -5,7 +5,7 @@ from otto_trans.core.cache import Cache
 def temp_db(tmp_path):
     Cache._instance = None         # ← 清空单例
     Cache._initialized = False     # ← 允许重新初始化
-    Cache._db_path = tmp_path / "test_cache.db"
+    Cache.db_path = tmp_path / "test_cache.db"
     yield
 
 def test_singleton():
