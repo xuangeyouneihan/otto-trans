@@ -9,17 +9,6 @@ from .cache import Cache
 class Translator:
     _engines: dict[str, type[BaseTranslator]] = {}
 
-    _TYPE_CHECKERS = {
-        "str": str,
-        "bool": bool,
-        "int": int,
-        "float": float,
-        "list": list,
-        "tuple": tuple,
-        "set": set,
-        "dict": dict,
-    }
-
     @classmethod
     def engines(cls) -> dict[str, type[BaseTranslator]]:
         """注册内置翻译引擎并动态发现可用的翻译引擎，返回它们的名称列表。"""
@@ -54,19 +43,25 @@ class Translator:
             raise ValueError(f"未知的翻译引擎：{engine}")
 
         for opt_name, opt_meta in engine_cls.options.items():
-            if opt_meta["required"] and opt_name not in options:
-                raise ValueError(f"缺少翻译引擎 {engine} 的必需选项：{opt_name}")
-
-            expected_type = self._TYPE_CHECKERS.get(str(opt_meta["type"]))
-            if expected_type is None:
+            expected_type = opt_meta["type"]
+            if (
+                not isinstance(expected_type, type)
+                or expected_type.__module__ != "builtins"
+            ):
                 raise ValueError(
-                    f"翻译引擎 {engine} 的选项 {opt_name} 定义了未知的类型：{opt_meta['type']}"
+                    f"翻译引擎 {engine} 的选项 {opt_name} 定义了未知的类型：{expected_type}"
                 )
-            if opt_name in options and options[opt_name] is None:
-                # 可选参数值为 None → 不传给引擎
-                if not opt_meta.get("required", False):
+
+            if opt_name not in options or (
+                not options[opt_name] and options[opt_name] not in (False, 0, 0.0)
+            ):
+                if opt_meta["required"]:
+                    raise ValueError(f"缺少翻译引擎 {engine} 的必需选项：{opt_name}")
+                else:
+                    # 可选参数值为空 → 不传给引擎
                     continue
-            if opt_name in options and not isinstance(options[opt_name], expected_type):
+
+            if not isinstance(options[opt_name], expected_type):
                 if isinstance(options[opt_name], str) and expected_type is bool:
                     # 特殊处理字符串转换为布尔值
                     if options[opt_name].lower() in (

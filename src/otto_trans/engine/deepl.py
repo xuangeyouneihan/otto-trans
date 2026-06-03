@@ -37,30 +37,30 @@ class DeepLTranslator(BaseTranslator):
     engine_name = "deepl"
     friendly_name = "DeepL 翻译"
 
-    options: dict[str, dict[str, str | bool]] = {
-        "auth_key": {"type": "str", "description": "API 密钥", "required": True},
+    options: dict[str, dict[str, type | str | bool]] = {
+        "auth_key": {"type": str, "description": "API 密钥", "required": True},
         "paid": {
-            "type": "bool",
+            "type": bool,
             "description": "是否使用付费端点，true 或 false，默认 false",
             "required": False,
         },
         "context": {
-            "type": "str",
+            "type": str,
             "description": "上下文信息，帮助模型理解翻译场景",
             "required": False,
         },
         "preserve_formatting": {
-            "type": "bool",
+            "type": bool,
             "description": "保留原文格式，true 或 false",
             "required": False,
         },
         "formality": {
-            "type": "str",
+            "type": str,
             "description": "正式程度，default、more、less、prefer_more 或 prefer_less",
             "required": False,
         },
         "model_type": {
-            "type": "str",
+            "type": str,
             "description": "模型类型，quality_optimized、latency_optimized 或 prefer_quality_optimized",
             "required": False,
         },

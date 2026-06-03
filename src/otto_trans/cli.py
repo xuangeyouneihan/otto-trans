@@ -19,7 +19,9 @@ def _build_help_epilog() -> str:
         f"配置文件: {Settings.config_path}",
         "",
         "首次运行时自动生成默认配置。",
-        "" * 3,
+        "",
+        "",
+        "",
         f"缓存文件: {Cache.db_path}"
     ]
 

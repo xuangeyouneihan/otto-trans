@@ -145,59 +145,55 @@ class OpenAITranslator(BaseTranslator):
     engine_name = "openai"
     friendly_name = "OpenAI 翻译"
 
-    options: dict[str, dict[str, str | bool]] = {
+    options: dict[str, dict[str, type | str | bool]] = {
         "endpoint": {
-            "type": "str",
+            "type": str,
             "description": "API 端点地址",
             "required": True,
         },
-        "api_key": {
-            "type": "str",
-            "description": "API 密钥",
-            "required": True
-        },
+        "api_key": {"type": str, "description": "API 密钥", "required": True},
         "model": {
-            "type": "str",
+            "type": str,
             "description": "模型名称",
             "required": True,
         },
         "prompt_template": {
-            "type": "str",
+            "type": str,
             "description": "自定义提示词 模板，支持 {src_lang} 和 {tgt_lang} 占位",
             "required": False,
         },
         "thinking": {
-            "type": "bool",
+            "type": bool,
             "description": "深度思考模式，true 或 false",
             "required": False,
         },
         "reasoning_effort": {
-            "type": "str",
+            "type": str,
             "description": "推理强度，none、minimal、low、medium、high、xhigh 或 max",
             "required": False,
         },
         "temperature": {
-            "type": "float",
+            "type": float,
             "description": "采样温度，0~2，越低越确定",
             "required": False,
         },
         "max_tokens": {
-            "type": "int",
+            "type": int,
             "description": "最大输出 token 数，必须大于或等于 1",
             "required": False,
         },
         "top_p": {
-            "type": "float",
+            "type": float,
             "description": "核采样概率，0~1，越低越确定",
             "required": False,
         },
         "top_k": {
-            "type": "int",
+            "type": int,
             "description": "top-k 采样，整数，越大越随机",
             "required": False,
         },
         "repetition_penalty": {
-            "type": "float",
+            "type": float,
             "description": "重复惩罚，0~2，越大越避免重复",
             "required": False,
         },

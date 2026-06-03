@@ -27,7 +27,7 @@ class BaseTranslator(ABC):
     engine_name: str = ""
     friendly_name: str = ""  # 可选的用户友好名称
 
-    options: dict[str, dict[str, str | bool]] = {}
+    options: dict[str, dict[str, type | str | bool]] = {}
 
     def __init__(self, config_name: str | None = None):
         self.config_name = config_name
@@ -43,18 +43,13 @@ class BaseTranslator(ABC):
         for name, meta in opts.items():
             if not isinstance(name, str):
                 raise TypeError(f"{cls.__name__}.options 的键必须是字符串")
-            if "type" not in meta or meta["type"] not in (
-                "str",
-                "bool",
-                "int",
-                "float",
-                "list",
-                "tuple",
-                "set",
-                "dict",
-            ):
+            if "type" not in meta or not isinstance(meta["type"], type):
                 raise TypeError(
-                    f"{cls.__name__}.options['{name}']['type'] 必须是 str、bool、int 或 float"
+                    f"{cls.__name__}.options['{name}']['type'] 必须是一个 Python 类型对象"
+                )
+            if meta["type"].__module__ != "builtins":
+                raise TypeError(
+                    f"{cls.__name__}.options['{name}']['type'] 必须是 Python 内置类型，不能是自定义类型"
                 )
             if "description" not in meta or not isinstance(meta["description"], str):
                 raise TypeError(

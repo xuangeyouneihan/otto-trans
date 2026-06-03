@@ -11,14 +11,14 @@ class EnginePlugin(BaseTranslator):
     engine_name = "engine_plugin"  # 可选的引擎标识，建议和 pyproject.toml 中 entry_points 的左侧名称保持一致，保证唯一且不与内置引擎冲突
     friendly_name = "示例引擎插件"  # 可选的用户友好名称
 
-    options: dict[str, dict[str, str | bool]] = {
+    options: dict[str, dict[str, type | str | bool]] = {
         # 定义插件所需的选项，例如：
         "api_key": {
-            "type": "str",
+            "type": str,
             "description": "API 密钥",
             "required": True,
         },
-        # 其中 "type" 可以是 "str"、"bool"、"int"、"float"、"list"、"tuple"、"set" 或 "dict"，CLI 会根据这个信息进行类型检查和转换
+        # 其中 "type" 可以是 str、bool、int、float 等 Python 内置类型对象，CLI 会根据这个信息进行类型检查和转换
         # "description" 是选项的描述文本，会在 CLI 的帮助信息中显示
         # "required" 是一个布尔值，表示这个选项是否必需，如果用户没有提供必需的选项，CLI 会报错提示缺少哪个选项
     }

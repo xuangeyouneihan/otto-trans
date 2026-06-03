@@ -143,14 +143,14 @@ class YoudaoTranslator(BaseTranslator):
     engine_name = "youdao"
     friendly_name = "有道翻译"
 
-    options: dict[str, dict[str, str | bool]] = {
+    options: dict[str, dict[str, type | str | bool]] = {
         "app_key": {
-            "type": "str",
+            "type": str,
             "description": "应用 ID",
             "required": True,
         },
         "app_secret": {
-            "type": "str",
+            "type": str,
             "description": "应用密钥",
             "required": True,
         },
