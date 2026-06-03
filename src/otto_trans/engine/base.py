@@ -43,13 +43,17 @@ class BaseTranslator(ABC):
         for name, meta in opts.items():
             if not isinstance(name, str):
                 raise TypeError(f"{cls.__name__}.options 的键必须是字符串")
-            if "type" not in meta or not isinstance(meta["type"], type):
+            if not isinstance(meta, dict):
                 raise TypeError(
-                    f"{cls.__name__}.options['{name}']['type'] 必须是一个 Python 类型对象"
+                    f"{cls.__name__}.options['{name}'] 必须是一个字典，包含 'type'、'description' 和 'required' 键"
                 )
-            if meta["type"].__module__ != "builtins":
+            if (
+                "type" not in meta
+                or not isinstance(meta["type"], type)
+                or meta["type"].__module__ != "builtins"
+            ):
                 raise TypeError(
-                    f"{cls.__name__}.options['{name}']['type'] 必须是 Python 内置类型，不能是自定义类型"
+                    f"{cls.__name__}.options['{name}']['type'] 必须是一个 Python 内置类型对象"
                 )
             if "description" not in meta or not isinstance(meta["description"], str):
                 raise TypeError(

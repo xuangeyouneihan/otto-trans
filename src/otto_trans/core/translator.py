@@ -43,14 +43,7 @@ class Translator:
             raise ValueError(f"未知的翻译引擎：{engine}")
 
         for opt_name, opt_meta in engine_cls.options.items():
-            expected_type = opt_meta["type"]
-            if (
-                not isinstance(expected_type, type)
-                or expected_type.__module__ != "builtins"
-            ):
-                raise ValueError(
-                    f"翻译引擎 {engine} 的选项 {opt_name} 定义了未知的类型：{expected_type}"
-                )
+            expected_type = cast(type, opt_meta["type"])
 
             if opt_name not in options or (
                 not options[opt_name] and options[opt_name] not in (False, 0, 0.0)

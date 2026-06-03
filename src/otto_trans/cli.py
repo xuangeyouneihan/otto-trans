@@ -44,7 +44,7 @@ def _build_help_epilog() -> str:
             if req:
                 lines.append(f"  {name.ljust(max_name)}  （需 {'、'.join(req)}）")
             else:
-                lines.append(f"  {name.ljust(max_name)}")
+                lines.append(f"  {name}")
         lines.append("")
 
     lines += [""] * 3 + ["─" * (cols - 2)] + [""] * 3
@@ -54,6 +54,8 @@ def _build_help_epilog() -> str:
     for name in sorted(engines):
         lines += [""] * 5
         cls = engines[name]
+        if not cls.options:
+            continue  # 没有选项的引擎不需要展示选项信息
         friendly = cls.friendly_name
         max_opt = max((len(k) for k in cls.options), default=0)
         if friendly:
@@ -62,7 +64,18 @@ def _build_help_epilog() -> str:
             lines.append(f"  {name}：")
         lines += [""] * 3
         for opt_name, opt_meta in cls.options.items():
-            lines.append(f"    {opt_name.ljust(max_opt)}  {opt_meta['description']}")
+            if opt_meta["description"]:
+                if opt_meta["required"]:
+                    lines.append(
+                        f"    {opt_name.ljust(max_opt)}  {opt_meta['description']}（必需）"
+                    )
+                else:
+                    lines.append(f"    {opt_name.ljust(max_opt)}  {opt_meta['description']}")
+            else:
+                if opt_meta["required"]:
+                    lines.append(f"    {opt_name.ljust(max_opt)}  （必需）")
+                else:
+                    lines.append(f"    {opt_name}")
             lines.append("")
 
     lines += [""] * 3 + ["─" * (cols - 2)] + [""] * 3
