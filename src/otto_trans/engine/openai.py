@@ -3,6 +3,7 @@ from typing import Any
 import httpx
 
 from .base import BaseTranslator, UnsupportedLanguageError
+from ..utils.format import Format, UnsupportedFormatError
 
 
 class OpenAIAPIError(Exception):
@@ -269,7 +270,9 @@ class OpenAITranslator(BaseTranslator):
     def name(self) -> str:
         return f"{self.engine_name}:{self.model}"
 
-    async def translate(self, text: str, src_lang: str, tgt_lang: str) -> str:
+    async def translate(self, text: str, src_lang: str, tgt_lang: str, fmt: Format | None = None) -> str:
+        if fmt and fmt not in (self.formats or []):
+            raise UnsupportedFormatError.for_engine(self.name, fmt)
         if tgt_lang.lower() == "auto":
             raise UnsupportedLanguageError.for_engine(
                 f"{self.friendly_name}（{self.name}）", src_lang, tgt_lang

@@ -42,7 +42,8 @@ class Translator:
         if not engine_cls:
             raise ValueError(f"未知的翻译引擎：{engine}")
 
-        for opt_name, opt_meta in engine_cls.options.items():
+        engine_options = engine_cls.options or {}
+        for opt_name, opt_meta in engine_options.items():
             expected_type = cast(type, opt_meta["type"])
 
             if opt_name not in options or (

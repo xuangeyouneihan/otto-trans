@@ -5,6 +5,7 @@ import uuid
 import httpx
 
 from .base import BaseTranslator, UnsupportedLanguageError
+from ..utils.format import Format, UnsupportedFormatError
 
 
 class YoudaoAPIError(Exception):
@@ -190,12 +191,14 @@ class YoudaoTranslator(BaseTranslator):
         """返回可供用户选择的语言代码列表（不含别名）。"""
         return [k for k in self._LANG_MAP if k == self._LANG_MAP[k] and k != "auto"]
 
-    async def translate(self, text: str, src_lang: str, tgt_lang: str) -> str:
-        return (await self.translate_batch([text], src_lang, tgt_lang))[0]
+    async def translate(self, text: str, src_lang: str, tgt_lang: str, fmt: Format | None = None) -> str:
+        return (await self.translate_batch([text], src_lang, tgt_lang, fmt))[0]
 
     async def translate_batch(
-        self, texts: list[str], src_lang: str, tgt_lang: str
+        self, texts: list[str], src_lang: str, tgt_lang: str, fmt: Format | None = None
     ) -> list[str]:
+        if fmt and fmt not in (self.formats or []):
+            raise UnsupportedFormatError.for_engine(self.name, fmt)
         (src_lang, tgt_lang) = self._normalize_lang(src_lang, tgt_lang)
         payload = self._build_payload(texts, src_lang, tgt_lang)
         response = await self._request(payload)

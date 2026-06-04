@@ -2,8 +2,10 @@ import asyncio
 import inspect
 from abc import ABC, abstractmethod
 
+from ..utils.format import Format
 
-class UnsupportedLanguageError(Exception):
+
+class UnsupportedLanguageError(ValueError):
     """引擎不支持的语言代码"""
 
     @classmethod
@@ -17,9 +19,9 @@ class UnsupportedLanguageError(Exception):
     ) -> "UnsupportedLanguageError":
         text = f"当前翻译引擎 {engine_name} 不支持指定的语言 '{src_code}' -> '{tgt_code}'。"
         if src_available:
-            text += f"\n可用的源语言如下：{', '.join(sorted(src_available))}"
+            text += f"\n\n可用的源语言如下：{', '.join(sorted(src_available))}"
         if tgt_available:
-            text += f"\n可用的目标语言如下：{', '.join(sorted(tgt_available))}"
+            text += f"\n\n可用的目标语言如下：{', '.join(sorted(tgt_available))}"
         return cls(text)
 
 
@@ -27,42 +29,62 @@ class BaseTranslator(ABC):
     engine_name: str = ""
     friendly_name: str = ""  # 可选的用户友好名称
 
-    options: dict[str, dict[str, type | str | bool]] = {}
+    options: dict[
+        str, dict[str, type | str | bool]
+    ] = {}  # 可选的配置选项定义，其中的键是选项名称，值是一个包含 "type": type、"description": str 和 "required": bool 键的字典
+    formats: list[
+        Format
+    ] = []  # 可选的格式支持列表，其中的元素必须是 Format 对象，且不能重复
 
     def __init__(self, config_name: str | None = None):
         self.config_name = config_name
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
-        opts = cls.__dict__.get("options")
-        if opts is None or not isinstance(opts, dict):
-            raise TypeError(
-                f"{cls.__name__} 必须定义类变量 'options' 且其类型必须是字典"
-            )
 
-        for name, meta in opts.items():
-            if not isinstance(name, str):
-                raise TypeError(f"{cls.__name__}.options 的键必须是字符串")
-            if not isinstance(meta, dict):
+        opts = cls.__dict__.get("options")
+        if opts is not None:
+            if not isinstance(opts, dict):
+                raise TypeError(f"{cls.__name__}.options 必须是一个字典")
+            for name, meta in opts.items():
+                if not isinstance(name, str):
+                    raise TypeError(f"{cls.__name__}.options 的键必须是字符串")
+                if not isinstance(meta, dict):
+                    raise TypeError(
+                        f"{cls.__name__}.options['{name}'] 必须是一个字典，包含 'type'、'description' 和 'required' 键"
+                    )
+                if (
+                    "type" not in meta
+                    or not isinstance(meta["type"], type)
+                    or meta["type"].__module__ != "builtins"
+                ):
+                    raise TypeError(
+                        f"{cls.__name__}.options['{name}']['type'] 必须是一个 Python 内置类型对象"
+                    )
+                if "description" not in meta or not isinstance(
+                    meta["description"], str
+                ):
+                    raise TypeError(
+                        f"{cls.__name__}.options['{name}']['description'] 必须是字符串"
+                    )
+                if "required" not in meta or not isinstance(meta["required"], bool):
+                    raise TypeError(
+                        f"{cls.__name__}.options['{name}']['required'] 必须是布尔值"
+                    )
+
+        fmts = cls.__dict__.get("formats")
+        if fmts is not None:
+            if not isinstance(fmts, list):
                 raise TypeError(
-                    f"{cls.__name__}.options['{name}'] 必须是一个字典，包含 'type'、'description' 和 'required' 键"
+                    f"{cls.__name__}.formats 必须是一个列表，包含不重复的 Format 对象"
                 )
-            if (
-                "type" not in meta
-                or not isinstance(meta["type"], type)
-                or meta["type"].__module__ != "builtins"
-            ):
-                raise TypeError(
-                    f"{cls.__name__}.options['{name}']['type'] 必须是一个 Python 内置类型对象"
-                )
-            if "description" not in meta or not isinstance(meta["description"], str):
-                raise TypeError(
-                    f"{cls.__name__}.options['{name}']['description'] 必须是字符串"
-                )
-            if "required" not in meta or not isinstance(meta["required"], bool):
-                raise TypeError(
-                    f"{cls.__name__}.options['{name}']['required'] 必须是布尔值"
-                )
+            for fmt in fmts:
+                if not isinstance(fmt, Format):
+                    raise TypeError(
+                        f"{cls.__name__}.formats 中的每个元素都必须是 Format 对象"
+                    )
+            if len(fmts) != len(set(fmts)):
+                raise ValueError(f"{cls.__name__}.formats 中存在重复的 Format 对象")
 
         # 验证子类的 __init__ 支持 config_name 参数
         sig = inspect.signature(cls.__init__)
@@ -83,11 +105,17 @@ class BaseTranslator(ABC):
         return engine_name
 
     @abstractmethod
-    async def translate(self, text: str, src_lang: str, tgt_lang: str) -> str: ...
+    async def translate(
+        self, text: str, src_lang: str, tgt_lang: str, fmt: Format | None = None
+    ) -> str: ...
 
     async def translate_batch(
-        self, texts: list[str], src_lang: str, tgt_lang: str
+        self,
+        texts: list[str],
+        src_lang: str,
+        tgt_lang: str,
+        fmt: Format | None = None,
     ) -> list[str]:
         return await asyncio.gather(*[
-            self.translate(t, src_lang, tgt_lang) for t in texts
+            self.translate(t, src_lang, tgt_lang, fmt) for t in texts
         ])

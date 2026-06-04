@@ -3,6 +3,7 @@ from typing import Any
 import httpx
 
 from .base import BaseTranslator, UnsupportedLanguageError
+from ..utils.format import Format, UnsupportedFormatError
 
 
 class DeepLAPIError(Exception):
@@ -112,12 +113,14 @@ class DeepLTranslator(BaseTranslator):
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self._client.aclose()
 
-    async def translate(self, text: str, src_lang: str, tgt_lang: str) -> str:
-        return (await self.translate_batch([text], src_lang, tgt_lang))[0]
+    async def translate(self, text: str, src_lang: str, tgt_lang: str, fmt: Format | None = None) -> str:
+        return (await self.translate_batch([text], src_lang, tgt_lang, fmt))[0]
 
     async def translate_batch(
-        self, texts: list[str], src_lang: str, tgt_lang: str
+        self, texts: list[str], src_lang: str, tgt_lang: str, fmt: Format | None = None
     ) -> list[str]:
+        if fmt and fmt not in (self.formats or []):
+            raise UnsupportedFormatError.for_engine(self.name, fmt)
         (src_lang, tgt_lang) = self._normalize_lang(src_lang, tgt_lang)
         payload = self._build_payload(texts, src_lang, tgt_lang)
         headers = {

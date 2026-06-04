@@ -1,6 +1,6 @@
 # import asyncio  # 如果取消下方 translate_batch 的注释，请取消本行注释
 from otto_trans.engine.base import BaseTranslator, UnsupportedLanguageError
-
+from otto_trans.utils.format import Format, UnsupportedFormatError
 
 class EnginePluginError(Exception):
     # 引擎插件相关的异常
@@ -12,7 +12,7 @@ class EnginePlugin(BaseTranslator):
     friendly_name = "示例引擎插件"  # 可选的用户友好名称
 
     options: dict[str, dict[str, type | str | bool]] = {
-        # 定义插件所需的选项，例如：
+        # 定义插件所需的选项（可选），例如：
         "api_key": {
             "type": str,
             "description": "API 密钥",
@@ -22,6 +22,13 @@ class EnginePlugin(BaseTranslator):
         # "description" 是选项的描述文本，会在 CLI 的帮助信息中显示
         # "required" 是一个布尔值，表示这个选项是否必需，如果用户没有提供必需的选项，CLI 会报错提示缺少哪个选项
     }
+
+    formats: list[Format] = [
+        # 定义翻译引擎原生支持的格式（可选），例如：
+        Format(name="text", description="纯文本格式", extensions={".txt", ".text"}),
+        Format(name="markdown", description="Markdown 格式", extensions={".md", ".mdown", ".markdown"}),
+        # 这里的 Format 对象必须包含 name、description 和 extensions 属性，且不能重复，extensions 是一个包含文件扩展名的集合
+    ]
 
     def __init__(self, api_key: str, config_name: str | None = None, **kwargs):
         # 在这里初始化你的插件，例如创建 API 客户端等
@@ -40,9 +47,11 @@ class EnginePlugin(BaseTranslator):
     #         return f"{engine_name}:{self.config_name}"
     #     return engine_name
 
-    async def translate(self, text: str, src_lang: str, tgt_lang: str) -> str:
+    async def translate(self, text: str, src_lang: str, tgt_lang: str, fmt: Format | None = None) -> str:
         # 实现翻译逻辑，调用第三方 API 或使用其他方法进行翻译
         # 这里是一个示例实现，你需要根据实际情况进行修改
+        if fmt and fmt not in (self.formats or []):
+            raise UnsupportedFormatError.for_engine(self.name, fmt, self.formats)
         if src_lang not in ["en", "zh"] or tgt_lang not in ["en", "zh"]:
             raise UnsupportedLanguageError.for_engine(
                 self.name,
@@ -54,9 +63,9 @@ class EnginePlugin(BaseTranslator):
         return f'Translated "{text}" from {src_lang} to {tgt_lang} using engine_plugin'
 
     # async def translate_batch(
-    #     self, texts: list[str], src_lang: str, tgt_lang: str
+    #     self, texts: list[str], src_lang: str, tgt_lang: str, fmt: Format | None = None
     # ) -> list[str]:
     #     # 批量翻译（可选，默认实现如下，可覆盖为批量 API 请求优化性能）
     #     return await asyncio.gather(*[
-    #         self.translate(t, src_lang, tgt_lang) for t in texts
+    #         self.translate(t, src_lang, tgt_lang, fmt) for t in texts
     #     ])
