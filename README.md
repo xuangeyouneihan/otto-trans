@@ -316,3 +316,23 @@ pytest          # 全部测试
 pytest -v       # 详细输出
 pytest -k cache # 只跑缓存相关测试
 ```
+
+---
+
+## 许可
+
+本项目采用 [MIT License](LICENSE)。
+
+### 使用的开源项目
+
+| 项目 | 许可证 | 用途 |
+|------|--------|------|
+| [chardet](https://github.com/chardet/chardet) | 0BSD | 编码检测 |
+| [httpx](https://github.com/encode/httpx) | BSD-3-Clause | HTTP 客户端 |
+| [markdownify](https://github.com/matthewwithanm/markdownify) | MIT | HTML → Markdown |
+| [mistune](https://github.com/lepture/mistune) | BSD-3-Clause | Markdown → HTML |
+| [pydantic-settings](https://github.com/pydantic/pydantic-settings) | MIT | 配置管理 |
+| [PyYAML](https://github.com/yaml/pyyaml) | MIT | YAML 解析 |
+| [typer](https://github.com/fastapi/typer) | MIT | CLI 框架 |
+
+运行时传递依赖包括：[beautifulsoup4](https://code.launchpad.net/beautifulsoup)、[certifi](https://github.com/certifi/python-certifi)、[click](https://github.com/pallets/click)、[h11](https://github.com/python-hyper/h11)、[httpcore](https://github.com/encode/httpcore)、[idna](https://github.com/kjd/idna)、[markdown-it-py](https://github.com/executablebooks/markdown-it-py)、[rich](https://github.com/Textualize/rich)、[shellingham](https://github.com/sarugaku/shellingham)、[soupsieve](https://github.com/facelessuser/soupsieve) 等。
