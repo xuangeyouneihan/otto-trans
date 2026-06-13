@@ -1,0 +1,12 @@
+[project]
+name = "converter-plugin"
+description = "otto-trans 的格式转换器插件模板。"
+dependencies = [
+    "otto-trans>=1.0.0",
+]
+
+# 向 otto-trans 注册格式转换器插件。
+# 等号左侧：插件名称，保证唯一且不与内置转换器冲突。
+# 等号右侧：`模块路径:类名`，entry_points 自动导入该类。
+[project.entry-points."otto_trans.converter"]
+converter_plugin = "converter_plugin:ConverterPlugin"

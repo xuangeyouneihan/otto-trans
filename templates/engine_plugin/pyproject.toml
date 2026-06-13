@@ -2,7 +2,7 @@
 name = "engine-plugin"
 description = "otto-trans 的翻译引擎插件模板。"
 dependencies = [
-    "otto-trans>=0.3.0",
+    "otto-trans>=1.0.0",
 ]
 
 # 向 otto-trans 注册翻译引擎插件。

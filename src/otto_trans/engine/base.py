@@ -1,4 +1,3 @@
-import asyncio
 import inspect
 from abc import ABC, abstractmethod
 
@@ -14,14 +13,23 @@ class UnsupportedLanguageError(ValueError):
         engine_name: str,
         src_code: str,
         tgt_code: str,
-        src_available: list[str] | None = None,
-        tgt_available: list[str] | None = None,
+        src_available: set[str] | None = None,
+        tgt_available: set[str] | None = None,
+        *,
+        supported_pairs: set[tuple[str, str]] | None = None,
+        blocked_pairs: set[tuple[str, str]] | None = None,
     ) -> "UnsupportedLanguageError":
         text = f"当前翻译引擎 {engine_name} 不支持指定的语言 '{src_code}' -> '{tgt_code}'。"
         if src_available:
             text += f"\n\n可用的源语言如下：{', '.join(sorted(src_available))}"
         if tgt_available:
             text += f"\n\n可用的目标语言如下：{', '.join(sorted(tgt_available))}"
+        if supported_pairs:
+            pairs = ", ".join(f"{s}→{t}" for s, t in sorted(supported_pairs))
+            text += f"\n\n支持的翻译方向：{pairs}"
+        if blocked_pairs:
+            pairs = ", ".join(f"{s}→{t}" for s, t in sorted(blocked_pairs))
+            text += f"\n\n不支持的翻译方向：{pairs}"
         return cls(text)
 
 
@@ -30,11 +38,11 @@ class BaseTranslator(ABC):
     friendly_name: str = ""  # 可选的用户友好名称
 
     options: dict[
-        str, dict[str, type | str | bool]
+        str, dict[str, type | str | bool | set[str]]
     ] = {}  # 可选的配置选项定义，其中的键是选项名称，值是一个包含 "type": type、"description": str 和 "required": bool 键的字典
-    formats: list[
-        Format
-    ] = []  # 可选的格式支持列表，其中的元素必须是 Format 对象，且不能重复
+    formats: set[Format] = (
+        set()
+    )  # 可选的格式支持列表，其中的元素必须是 Format 对象，且不能重复
 
     def __init__(self, config_name: str | None = None):
         self.config_name = config_name
@@ -71,20 +79,27 @@ class BaseTranslator(ABC):
                     raise TypeError(
                         f"{cls.__name__}.options['{name}']['required'] 必须是布尔值"
                     )
+                if (
+                    "scope" not in meta
+                    or not isinstance(meta["scope"], set)
+                    or not meta["scope"]
+                    or not meta["scope"].issubset({"text", "file"})
+                ):
+                    raise TypeError(
+                        f"{cls.__name__}.options['{name}']['scope'] 必须是一个集合，包含 'text' 和/或 'file'"
+                    )
 
         fmts = cls.__dict__.get("formats")
         if fmts is not None:
-            if not isinstance(fmts, list):
+            if not isinstance(fmts, set):
                 raise TypeError(
-                    f"{cls.__name__}.formats 必须是一个列表，包含不重复的 Format 对象"
+                    f"{cls.__name__}.formats 必须是一个集合，包含不重复的 Format 对象"
                 )
             for fmt in fmts:
                 if not isinstance(fmt, Format):
                     raise TypeError(
                         f"{cls.__name__}.formats 中的每个元素都必须是 Format 对象"
                     )
-            if len(fmts) != len(set(fmts)):
-                raise ValueError(f"{cls.__name__}.formats 中存在重复的 Format 对象")
 
         # 验证子类的 __init__ 支持 config_name 参数
         sig = inspect.signature(cls.__init__)
@@ -105,17 +120,38 @@ class BaseTranslator(ABC):
         return engine_name
 
     @abstractmethod
-    async def translate(
-        self, text: str, src_lang: str, tgt_lang: str, fmt: Format | None = None
-    ) -> str: ...
-
-    async def translate_batch(
+    def translate_texts(
         self,
         texts: list[str],
         src_lang: str,
         tgt_lang: str,
-        fmt: Format | None = None,
-    ) -> list[str]:
-        return await asyncio.gather(*[
-            self.translate(t, src_lang, tgt_lang, fmt) for t in texts
-        ])
+    ) -> list[str]: ...
+
+    async def translate_file(
+        self,
+        content: bytes,
+        src_lang: str,
+        tgt_lang: str,
+        fmt: Format,
+    ) -> tuple[bytes, Format]:
+        raise NotImplementedError(
+            f"{self.friendly_name + '（' + self.engine_name + '）' if self.friendly_name else self.engine_name} 不支持文件翻译"
+        )
+
+    def _format_by_mime(self, mime: str) -> Format | None:
+        """根据 MIME 类型从 formats 中匹配 Format（去掉 ; 参数后匹配）。"""
+        mime = mime.split(";", 1)[0].strip()
+        for f in self.formats:
+            if f.mime_type == mime:
+                return f
+        return None
+
+    def supports_format(self, fmt: Format | str) -> Format | None:
+        """检查引擎是否支持该格式，支持则返回对应的 Format 对象，否则返回 None。
+
+        子类可重写以实现动态格式支持（如 OpenAI 支持任意文本格式）。
+        """
+        for f in self.formats or []:
+            if f == fmt:  # Format.__eq__ 支持 str（name/extension/mime_type）
+                return f
+        return None

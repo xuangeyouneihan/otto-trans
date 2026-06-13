@@ -1,6 +1,7 @@
 import pytest
-from otto_trans.engine.youdao import YoudaoTranslator
+
 from otto_trans.engine.openai import OpenAITranslator
+from otto_trans.engine.youdao import YoudaoTranslator
 
 
 @pytest.mark.asyncio
@@ -18,9 +19,9 @@ async def test_youdao_http_request(httpx_mock):
     )
 
     async with YoudaoTranslator(app_key="114514", app_secret="1919810") as engine:
-        result = await engine.translate("hello", "en", "zh-Hans")
+        result = await engine._translate_text_batch(["hello"], "en", "zh-CHS")
 
-    assert result == "你好"
+    assert result == ["你好"]
 
     # 验证请求内容
     request = httpx_mock.get_request()
@@ -67,7 +68,7 @@ async def test_openai_http_request(httpx_mock):
         api_key="sk-test",
         model="gpt-4o",
     ) as engine:
-        result = await engine.translate("hello", "en", "zh-Hans")
+        result = await engine._translate_text("hello", "en", "zh-Hans")
 
     assert result == "你好"
 

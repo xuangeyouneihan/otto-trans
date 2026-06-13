@@ -29,7 +29,7 @@ class Settings(BaseSettings):
         return settings
 
     @classmethod
-    def reset(cls):
+    def reset(cls) -> None:
         if cls.config_path.exists():
             cls.config_path.unlink()
         cls.config_path.parent.mkdir(parents=True, exist_ok=True)
@@ -38,8 +38,8 @@ class Settings(BaseSettings):
 
         lines = [
             "default_engine: # 默认翻译引擎",
-            "default_source: # 默认源语言，ISO 639 语言代码，支持 -Hans/-Hant/-Cyrl/-Latn 文字标记，如\"zh-Hans\"、\"en\"。auto 表示自动检测",
-            "default_target: # 默认目标语言，ISO 639 语言代码，支持 -Hans/-Hant/-Cyrl/-Latn 文字标记，\"zh-Hans\"、\"en\"",
+            'default_source: # 默认源语言，ISO 639 语言代码，支持 -Hans/-Hant/-Cyrl/-Latn 文字标记，如"zh-Hans"、"en"。auto 表示自动检测',
+            'default_target: # 默认目标语言，ISO 639 语言代码，支持 -Hans/-Hant/-Cyrl/-Latn 文字标记，"zh-Hans"、"en"',
             "",
             "# 引擎配置",
             "engines:",
@@ -56,17 +56,26 @@ class Settings(BaseSettings):
                 lines.append(f"  {name}:")
             lines.append("    default:")
             for opt_name, opt_meta in engine_cls.options.items():
-                if opt_meta["description"]:
-                    if opt_meta["required"]:
-                        lines.append(
-                            f"      {opt_name}: # {opt_meta['description']}（必需）"
-                        )
-                    else:
-                        lines.append(f"      {opt_name}: # {opt_meta['description']}")
+                desc = opt_meta.get("description", "")
+                req = opt_meta.get("required", False)
+                scope = opt_meta.get("scope", {"text", "file"})
+
+                # 构建括号内的提醒文本
+                parens: list[str] = []
+                if req:
+                    parens.append("必需")
+                if scope == {"text"}:
+                    parens.append("仅文本模式")
+                elif scope == {"file"}:
+                    parens.append("仅文件模式")
+
+                suffix = f"（{'，'.join(parens)}）" if parens else ""
+
+                if desc:
+                    lines.append(f"      {opt_name}: # {desc}{suffix}")
+                elif suffix:
+                    lines.append(f"      {opt_name}: # {suffix}")
                 else:
-                    if opt_meta["required"]:
-                        lines.append(f"      {opt_name}: # （必需）")
-                    else:
-                        lines.append(f"      {opt_name}:")
+                    lines.append(f"      {opt_name}:")
 
         cls.config_path.write_text("\n".join(lines) + "\n", encoding="utf-8")

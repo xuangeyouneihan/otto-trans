@@ -1,9 +1,13 @@
+import asyncio
+import mimetypes
+import re
 from typing import Any
 
 import httpx
 
-from .base import BaseTranslator, UnsupportedLanguageError
 from ..utils.format import Format, UnsupportedFormatError
+from ..utils.text import detect_encoding
+from .base import BaseTranslator, UnsupportedLanguageError
 
 
 class OpenAIAPIError(Exception):
@@ -12,12 +16,30 @@ class OpenAIAPIError(Exception):
     pass
 
 
+def _is_html(content: bytes, fmt: Format) -> bool:
+    """根据格式名、扩展名或内容判断是否为 HTML。"""
+    if (
+        fmt.name in ("html", "htm")
+        or ".html" in fmt.extensions
+        or ".htm" in fmt.extensions
+    ):
+        return True
+    # 检查内容前 500 字节是否含 HTML 标记
+    head = content[:500].decode("utf-8", errors="replace").lower()
+    return bool(re.search(r"<!doctype\s+html|<html|<head|<body", head))
+
+
 class OpenAITranslator(BaseTranslator):
     _default_prompt_template = (
-        "你是一个专业的翻译助手，负责将文本从一种语言翻译成另一种语言。"
-        "将以下文本从 {src_lang} 翻译成 {tgt_lang}。"
+        "你是一个专业的翻译助手。将以下文本从 {src_lang} 翻译成 {tgt_lang}。"
         "对于单个词汇，直接给出最常用的翻译，不要列举多种释义。"
         "只返回翻译后的文本，不要有解释、备注或引号。"
+        "严格遵守以下规则："
+        "1. 如果文本中包含 HTML/XML/Markdown 标记、代码、占位符、URL、"
+        "   邮件地址、数字格式等非自然语言内容，请原样保留不翻译，"
+        "   仅翻译标记之间或周围的自然语言文本。"
+        "2. 如果是纯文本（无标记），正常翻译全部内容。"
+        "3. 保留原文的空白、缩进和换行格式。"
     )
 
     # 标准语言代码 → 提示词用的中文名称
@@ -146,57 +168,72 @@ class OpenAITranslator(BaseTranslator):
     engine_name = "openai"
     friendly_name = "OpenAI 翻译"
 
-    options: dict[str, dict[str, type | str | bool]] = {
+    options: dict[str, dict[str, type | str | bool | set[str]]] = {
         "endpoint": {
             "type": str,
             "description": "API 端点地址",
             "required": True,
+            "scope": {"text", "file"},
         },
-        "api_key": {"type": str, "description": "API 密钥", "required": True},
+        "api_key": {
+            "type": str,
+            "description": "API 密钥",
+            "required": True,
+            "scope": {"text", "file"},
+        },
         "model": {
             "type": str,
             "description": "模型名称",
             "required": True,
+            "scope": {"text", "file"},
         },
         "prompt_template": {
             "type": str,
             "description": "自定义提示词 模板，支持 {src_lang} 和 {tgt_lang} 占位",
             "required": False,
+            "scope": {"text", "file"},
         },
         "thinking": {
             "type": bool,
             "description": "深度思考模式，true 或 false",
             "required": False,
+            "scope": {"text", "file"},
         },
         "reasoning_effort": {
             "type": str,
             "description": "推理强度，none、minimal、low、medium、high、xhigh 或 max",
             "required": False,
+            "scope": {"text", "file"},
         },
         "temperature": {
             "type": float,
             "description": "采样温度，0~2，越低越确定",
             "required": False,
+            "scope": {"text", "file"},
         },
         "max_tokens": {
             "type": int,
             "description": "最大输出 token 数，必须大于或等于 1",
             "required": False,
+            "scope": {"text", "file"},
         },
         "top_p": {
             "type": float,
             "description": "核采样概率，0~1，越低越确定",
             "required": False,
+            "scope": {"text", "file"},
         },
         "top_k": {
             "type": int,
             "description": "top-k 采样，整数，越大越随机",
             "required": False,
+            "scope": {"text", "file"},
         },
         "repetition_penalty": {
             "type": float,
             "description": "重复惩罚，0~2，越大越避免重复",
             "required": False,
+            "scope": {"text", "file"},
         },
     }
 
@@ -256,7 +293,7 @@ class OpenAITranslator(BaseTranslator):
         self.repetition_penalty = repetition_penalty
         self._client = httpx.AsyncClient(
             follow_redirects=True,
-            timeout=httpx.Timeout(60.0, read=120.0),
+            timeout=httpx.Timeout(60.0, read=600.0),
             transport=httpx.AsyncHTTPTransport(retries=2),  # ← 重试
         )
 
@@ -270,14 +307,79 @@ class OpenAITranslator(BaseTranslator):
     def name(self) -> str:
         return f"{self.engine_name}:{self.model}"
 
-    async def translate(self, text: str, src_lang: str, tgt_lang: str, fmt: Format | None = None) -> str:
-        if fmt and fmt not in (self.formats or []):
-            raise UnsupportedFormatError.for_engine(self.name, fmt)
+    def supports_format(self, fmt: Format | str) -> Format | None:
+        # 先走默认匹配
+        result = super().supports_format(fmt)
+        if result:
+            return result
+        # Format 对象：mime_type 以 text/ 开头则直接接受
+        if isinstance(fmt, Format) and fmt.mime_type.startswith("text/"):
+            return fmt
+        # 字符串：MIME 类型直接判断，否则用 mimetypes 推断
+        if isinstance(fmt, str):
+            if "/" in fmt:
+                # MIME 类型格式：text/html → name="html", extensions={".html"}
+                if fmt.startswith("text/"):
+                    name = fmt.split("/", 1)[1]
+                    ext = ".txt" if name == "plain" else f".{name}"
+                    return Format(name=name, extensions={ext}, mime_type=fmt)
+                return None
+            ext = fmt if fmt.startswith(".") else f".{fmt}"
+            mime, _ = mimetypes.guess_type(f"file{ext}")
+            if mime and mime.startswith("text/"):
+                return Format(name=fmt, extensions={ext}, mime_type=mime)
+        return None
+
+    def translate_texts(
+        self, texts: list[str], src_lang: str, tgt_lang: str
+    ) -> list[str]:
         if tgt_lang.lower() == "auto":
             raise UnsupportedLanguageError.for_engine(
                 f"{self.friendly_name}（{self.name}）", src_lang, tgt_lang
             )
-        payload = self._build_payload(text, src_lang, tgt_lang)
+
+        async def run():
+            return await asyncio.gather(*[
+                self._translate_text(t, src_lang, tgt_lang) for t in texts
+            ])
+
+        return asyncio.run(run())
+
+    async def translate_file(
+        self, content: bytes, src_lang: str, tgt_lang: str, fmt: Format
+    ) -> tuple[bytes, Format]:
+        if not self.supports_format(fmt):
+            raise UnsupportedFormatError.for_engine(self.name, fmt)
+
+        text = content.decode(detect_encoding(content), errors="replace")
+        result = await self._translate_text(text, src_lang, tgt_lang)
+
+        # HTML 特殊处理：补全 DOCTYPE/charset
+        if _is_html(content, fmt):
+            if not re.match(r"(?i)<!doctype\s+html", result.strip()):
+                result = "<!DOCTYPE html>\n" + result
+            if re.search(r"(?i)<meta\s+charset=", result):
+                result = re.sub(
+                    r'(?i)(<meta\s+charset\s*=\s*["\']?)[^"\' >]+',
+                    r"\1UTF-8",
+                    result,
+                )
+            else:
+                result = re.sub(
+                    r"(?i)(<head[^>]*>)",
+                    r'\1\n<meta charset="UTF-8">',
+                    result,
+                    count=1,
+                )
+        return result.encode("utf-8-sig"), fmt
+
+    async def _translate_text(
+        self,
+        content: str | bytes,
+        src_lang: str,
+        tgt_lang: str,
+    ) -> str:
+        payload = self._build_payload(content, src_lang, tgt_lang)
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.__api_key}",
@@ -292,7 +394,10 @@ class OpenAITranslator(BaseTranslator):
         body = response.json()
         return body["choices"][0]["message"]["content"].strip()
 
-    def _build_payload(self, text: str, src_lang: str, tgt_lang: str) -> dict:
+    def _build_payload(
+        self, content: str | bytes, src_lang: str, tgt_lang: str
+    ) -> dict:
+        text = content.decode() if isinstance(content, bytes) else content
         src_display = self._lang_display(src_lang)
         tgt_display = self._lang_display(tgt_lang)
         prompt = self.prompt_template.format(src_lang=src_display, tgt_lang=tgt_display)
