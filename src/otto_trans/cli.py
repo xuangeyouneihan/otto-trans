@@ -3,6 +3,7 @@ import os
 import re
 import shutil
 import sys
+from importlib.metadata import version as _pkg_version
 from pathlib import Path
 from typing import TextIO
 from urllib.parse import urlparse
@@ -854,6 +855,26 @@ def _classify_paths(
 # ── CLI ─────────────────────────────────────────────────────
 
 
+def _reset_config(value: bool):
+    if value:
+        Settings.reset()
+        typer.echo(f"已重置位于 {Settings.config_path} 的配置文件", err=True)
+        raise typer.Exit()
+
+
+def _reset_cache(value: bool):
+    if value:
+        Cache.reset()
+        typer.echo(f"已重置位于 {Cache.db_path} 的缓存", err=True)
+        raise typer.Exit()
+
+
+def _version_callback(value: bool):
+    if value:
+        typer.echo(f"♿电棍翻译器 {_pkg_version('otto-trans')}")
+        raise typer.Exit()
+
+
 @app.command(
     context_settings={"help_option_names": ["-h", "-?", "--help"]},
     epilog=_build_help_epilog(),
@@ -912,10 +933,29 @@ def main(
         show_default=False,
     ),
     reset_config: bool = typer.Option(
-        False, "--reset-config", help="重置配置文件", show_default=False
+        False,
+        "--reset-config",
+        help="重置配置文件",
+        callback=_reset_config,
+        is_eager=True,
+        show_default=False,
     ),
     reset_cache: bool = typer.Option(
-        False, "--reset-cache", help="重置缓存", show_default=False
+        False,
+        "--reset-cache",
+        help="重置缓存",
+        callback=_reset_cache,
+        is_eager=True,
+        show_default=False,
+    ),
+    version: bool = typer.Option(
+        False,
+        "-v",
+        "--version",
+        help="显示版本号",
+        callback=_version_callback,
+        is_eager=True,
+        show_default=False,
     ),
 ):
     """♿电棍翻译器 — 多引擎命令行翻译工具"""
@@ -927,31 +967,6 @@ def main(
         sys.stdin.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
     except Exception:
         pass
-
-    if (reset_config or reset_cache) and (
-        texts
-        or (src_lang and src_lang != "auto")
-        or tgt_lang
-        or engine
-        or options
-        or fmt
-        or converter
-        or adapter
-        or paths
-        or jobs
-    ):
-        typer.echo("重置配置或缓存时不应提供其他参数，已忽略其他参数。", err=True)
-
-    if reset_config:
-        Settings.reset()
-        typer.echo(f"已重置位于 {Settings.config_path} 的配置文件", err=True)
-        if not reset_cache:
-            raise typer.Exit()
-
-    if reset_cache:
-        Cache.reset()
-        typer.echo(f"已重置位于 {Cache.db_path} 的缓存", err=True)
-        raise typer.Exit()
 
     if not Settings.config_path.exists():
         Settings.reset()
