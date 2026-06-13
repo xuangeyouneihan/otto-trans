@@ -4,6 +4,12 @@ dynamic = ["version"]
 description = "多引擎命令行翻译工具，支持有道、OpenAI 兼容接口和 DeepL 三种翻译后端。"
 readme = "README.md"
 requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    { name = "轩哥有内涵" },
+]
+urls = { Repository = "https://github.com/xuangeyouneihan/otto-trans" }
 dependencies = [
     "chardet>=5.2.0",
     "httpx>=0.28.1",
