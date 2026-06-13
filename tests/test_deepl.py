@@ -36,10 +36,8 @@ def test_build_text_payload():
 
 def test_build_text_payload_with_source():
     engine = make_engine()
-    payload = engine._build_text_payload(["hello"], "EN", "DE")
-    # explicit source should be in payload
-    payload2 = engine._build_text_payload(["hello"], "FR", "DE")
-    assert payload2["source_lang"] == "FR"
+    payload = engine._build_text_payload(["hello"], "FR", "DE")
+    assert payload["source_lang"] == "FR"
 
 
 def test_translate_texts():
