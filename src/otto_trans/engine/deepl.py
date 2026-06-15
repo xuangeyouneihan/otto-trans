@@ -4,6 +4,8 @@ from typing import Any
 import httpx
 
 from ..utils.format import Format, UnsupportedFormatError
+from ..utils.html import fix_html
+from ..utils.text import detect_encoding
 from .base import BaseTranslator, UnsupportedLanguageError
 
 
@@ -312,9 +314,15 @@ class DeepLTranslator(BaseTranslator):
         src_lang, tgt_lang = self._normalize_lang(src_lang, tgt_lang)
         upload_result = await self._upload(content, src_lang, tgt_lang, fmt)
         await self._poll(upload_result["document_id"], upload_result["document_key"])
-        return await self._download(
+        result = await self._download(
             upload_result["document_id"], upload_result["document_key"]
-        ), fmt
+        )
+        if fmt == "html":
+            text_result = result.decode(detect_encoding(result), errors="replace")
+            fix_html_result = fix_html(text_result)
+            if fix_html_result != text_result:
+                result = fix_html_result.encode("utf-8-sig")
+        return result, fmt
 
     async def _upload(
         self, content: bytes, src_lang: str, tgt_lang: str, fmt: Format

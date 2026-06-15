@@ -8,6 +8,7 @@ import uuid
 import httpx
 
 from ..utils.format import Format, UnsupportedFormatError
+from ..utils.html import fix_html
 from ..utils.text import detect_encoding
 from .base import BaseTranslator, UnsupportedLanguageError
 
@@ -561,24 +562,8 @@ class YoudaoTranslator(BaseTranslator):
         if body.get("errorCode") != "0":
             raise YoudaoAPIError(f"有道网页翻译失败: errorCode={body.get('errorCode')}")
         translated = body["data"]
-        # 确保有 <!DOCTYPE html>
-        if not re.match(r"(?i)<!doctype\s+html", translated.strip()):
-            translated = "<!DOCTYPE html>\n" + translated
-        # 将 <meta charset> 统一改为 UTF-8，没有则插入
-        if re.search(r"(?i)<meta\s+charset=", translated):
-            translated = re.sub(
-                r'(?i)(<meta\s+charset\s*=\s*["\']?)[^"\' >]+',
-                r"\1UTF-8",
-                translated,
-            )
-        else:
-            translated = re.sub(
-                r"(?i)(<head[^>]*>)",
-                r'\1\n<meta charset="UTF-8">',
-                translated,
-                count=1,
-            )
-        return translated.encode("utf-8-sig")
+        fixed = fix_html(translated)
+        return fixed.encode("utf-8-sig")
 
     # ── 文件翻译 ─────────────────────────────────────────────
 
@@ -647,7 +632,7 @@ class YoudaoTranslator(BaseTranslator):
     ) -> tuple[bytes, Format]:
         if not self.supports_format(fmt):
             raise UnsupportedFormatError.for_engine(self.name, fmt)
-        
+
         if fmt.name == "html":
             translated = await self._translate_web(content, src_lang, tgt_lang)
             return translated, fmt
@@ -655,7 +640,9 @@ class YoudaoTranslator(BaseTranslator):
         src_lang, tgt_lang = self._normalize_doc_lang(src_lang, tgt_lang)
         file_type = self._resolve_file_type(fmt)
 
-        result, content_type = await self._translate_doc(content, src_lang, tgt_lang, file_type)
+        result, content_type = await self._translate_doc(
+            content, src_lang, tgt_lang, file_type
+        )
         out_fmt = self._format_by_mime(content_type) or fmt
         return result, out_fmt
 

@@ -6,6 +6,7 @@ from typing import Any
 import httpx
 
 from ..utils.format import Format, UnsupportedFormatError
+from ..utils.html import fix_html
 from ..utils.text import detect_encoding
 from .base import BaseTranslator, UnsupportedLanguageError
 
@@ -356,21 +357,7 @@ class OpenAITranslator(BaseTranslator):
 
         # HTML 特殊处理：补全 DOCTYPE/charset
         if _is_html(content, fmt):
-            if not re.match(r"(?i)<!doctype\s+html", result.strip()):
-                result = "<!DOCTYPE html>\n" + result
-            if re.search(r"(?i)<meta\s+charset=", result):
-                result = re.sub(
-                    r'(?i)(<meta\s+charset\s*=\s*["\']?)[^"\' >]+',
-                    r"\1UTF-8",
-                    result,
-                )
-            else:
-                result = re.sub(
-                    r"(?i)(<head[^>]*>)",
-                    r'\1\n<meta charset="UTF-8">',
-                    result,
-                    count=1,
-                )
+            result = fix_html(result)
         return result.encode("utf-8-sig"), fmt
 
     async def _translate_text(
