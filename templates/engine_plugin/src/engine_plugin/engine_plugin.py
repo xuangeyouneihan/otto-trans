@@ -1,3 +1,51 @@
+"""翻译引擎插件模板。
+
+快速开始
+--------
+1. 将本文件、__init__.py、pyproject.toml 中的 `engine_plugin` 替换为你的插件名
+2. 修改 `engine_name`（CLI 中 `-e` 使用的名称）和 `friendly_name`（帮助信息中显示）
+3. 实现 `translate_texts`（文本翻译）和可选的 `translate_file`（文件翻译）
+4. 在 `pyproject.toml` 中确认 `[project.entry-points."otto_trans.engine"]` 指向你的类
+5. `pip install -e .` 后运行 `otto --help` 验证是否出现在引擎列表中
+
+可选声明
+--------
+- `engine_name: str`：CLI 中 `-e` 使用的引擎名，最好和你的插件包名一致，保证唯一且不与内置引擎冲突
+- `friendly_name: str`：帮助信息中显示的名称
+- `formats: set[Format]`：引擎原生支持的格式。默认 `supports_format` 基于此集合匹配，声明后引擎可直接处理这些格式而无需转换器/适配器
+- `options: dict`：引擎所需的配置选项，需要名称、类型、描述、是否必需、适用模式等信息，CLI 会据此生成帮助信息并校验用户输入
+
+必需实现
+--------
+- `translate_texts(texts, src_lang, tgt_lang) -> list[str]`：同步方法，输入输出列表一一对应
+
+可选实现
+--------
+- `name` 属性：默认返回 `engine_name:config_name`，如果未声明 `engine_name` 就返回 `类名:config_name`，可覆盖以自定义
+- `translate_file(content, src_lang, tgt_lang, fmt) -> tuple[bytes, Format]`：异步方法，处理文件翻译
+- `supports_format(fmt) -> Format | None`：格式支持时返回对应的 Format 对象，覆盖以支持动态格式匹配。默认实现基于 `formats` 集合匹配（含扩展名子集判定），覆盖后通常先调 `super().supports_format(fmt)` 再追加自定义逻辑
+- 如果需要特殊处理文本格式翻译，建议使用 `utf-8-sig` 编码，可以考虑使用 `otto_trans.utils.text.utf_8` 函数（基于 MIME 类型来判断是否为文本格式，同时特殊处理 HTML）进行处理。解码可以考虑使用 `otto_trans.utils.text.detect_encoding`（基于 chardet）辅助自动检测编码
+
+框架行为
+--------
+- `options` 由 `Translator` 门面在初始化时校验类型、补齐默认值、必要时转换布尔值
+- `options` 中的 `scope` 控制该选项在何种模式下有效，`otto --help` 会据此标注
+- `config_name` 参数由框架自动传入（当用户用 `-e engine:config` 时），你的 `__init__` 必须接收并传给 `super().__init__`
+- 文本翻译默认走 `translate_texts`，文件翻译走 `translate_file`
+- 语言代码归一化由各引擎自行处理，框架不做干预
+
+错误处理
+--------
+- `UnsupportedFormatError.for_engine(name, fmt, formats)`：引擎不支持该格式时抛出，第二个参数是用户传入的格式（str 或 Format），第三个是本引擎支持的格式集合（可选）
+- `UnsupportedLanguageError.for_engine(name, src, tgt, src_set, tgt_set)`：语言不支持时抛出，后两个集合分别是支持的源语言和目标语言（传 `None` 表示不限）
+- 通用引擎异常：自定义异常类（如 `EnginePluginError`）
+
+Format 类
+---------
+- `Format` 是 dataclass，字段：`name: str`、`description: str`、`extensions: set[str]`、`mime_type: str`。
+- 扩展名子集判定：两个 Format 的 extensions 互为子集即视为相等（如 `text({".txt"}) == text({".txt", ".text"})`）。
+"""
+
 import httpx
 
 from otto_trans.engine.base import BaseTranslator, UnsupportedLanguageError

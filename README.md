@@ -12,7 +12,7 @@
 - **文件翻译**：支持批量文件对翻译，格式转换（Markdown↔HTML）、字幕适配
 - **缓存**：SQLite 持久化翻译缓存，相同文本不重复请求 API
 - **并发控制**：`-j` 参数控制文件翻译并发数，0 为无限制
-- **智能语言代码**：ISO 639 语言代码，支持大小写混写、BCP47 扩展（`zh-Hans` 等）
+- **灵活语言代码**：自带的 3 个引擎支持 ISO 639 语言代码与 BCP47 扩展（`zh-Hans` 等），各引擎自行归一化处理
 - **自动发现**：`otto --help` 和 `otto --reset-config` 自动读取已安装的插件，动态生成帮助信息与默认配置
 
 ---
@@ -143,7 +143,10 @@ otto -e deepl:my-config -t zh-Hans hello
 3. 找不到转换器时，查找能提取/组装该格式的适配器
 4. 翻译完成后，自动查找反向转换器将结果转回原格式
 
-整个过程中程序会通过 stderr 输出决策信息（如"适配器不支持该格式，尝试自动发现"），方便用户了解翻译过程。
+整个过程中程序会通过 stderr 输出决策信息，与进度条协同显示：
+警告自动擦除当前进度行、打印警告、再重印进度，确保进度始终在最新警告下方。
+
+格式匹配采用扩展名子集判定：如引擎返回 `text({ ".txt" })` 与用户指定的 `text({ ".txt", ".text" })` 视为一致，避免误报格式变更。
 
 | 类型             | 作用                                       | 示例                                     |
 | ---------------- | ------------------------------------------ | ---------------------------------------- |
@@ -273,6 +276,7 @@ otto-trans/
 │   └── deepl.py             DeepL 翻译引擎
 ├── utils/
 │   ├── format.py            文件格式定义（Format 数据类）
+│   ├── html.py              HTML 修复工具（DOCTYPE / charset）
 │   └── text.py              文本工具（编码检测等）
 templates/
 └── engine_plugin/           翻译引擎插件模板
@@ -309,7 +313,7 @@ uv run otto -t zh-Hans hello
 
 ## 测试
 
-87 个测试覆盖：缓存 CRUD、引擎初始化校验、语言代码归一化、签名构造、HTTP 请求验证、翻译编排逻辑、格式转换器、字幕适配器、CLI 路径解析、转换器参数解析、反向转换器查找。
+78 个测试覆盖：缓存 CRUD、引擎初始化校验、语言代码归一化、签名构造、HTTP 请求验证、翻译编排逻辑、格式转换器、字幕适配器、CLI 路径解析、格式比较、粘性进度条。
 
 ```bash
 pytest          # 全部测试
@@ -323,16 +327,22 @@ pytest -k cache # 只跑缓存相关测试
 
 本项目采用 [MIT License](LICENSE)。
 
+## 致谢
+
+感谢 [GoldenDict](https://github.com/goldendict/goldendict) 与 [GoldenDict-ng](https://github.com/xiaoyifang/goldendict-ng)，这个项目最初就是为了在 GoldenDict 中使用有道翻译而诞生的，没有它们就没有这个项目。
+
+感谢电棍与各位鬼畜区 up 主，当时没少被各种🧊给爽到，这也是本项目名称的由来。
+
 ### 使用的开源项目
 
-| 项目 | 许可证 | 用途 |
-|------|--------|------|
-| [chardet](https://github.com/chardet/chardet) | 0BSD | 编码检测 |
-| [httpx](https://github.com/encode/httpx) | BSD-3-Clause | HTTP 客户端 |
-| [markdownify](https://github.com/matthewwithanm/markdownify) | MIT | HTML → Markdown |
-| [mistune](https://github.com/lepture/mistune) | BSD-3-Clause | Markdown → HTML |
-| [pydantic-settings](https://github.com/pydantic/pydantic-settings) | MIT | 配置管理 |
-| [PyYAML](https://github.com/yaml/pyyaml) | MIT | YAML 解析 |
-| [typer](https://github.com/fastapi/typer) | MIT | CLI 框架 |
+| 项目                                                            | 许可证       | 用途             |
+| --------------------------------------------------------------- | ------------ | ---------------- |
+| [chardet](https://github.com/chardet/chardet)                      | 0BSD         | 编码检测         |
+| [httpx](https://github.com/encode/httpx)                           | BSD-3-Clause | HTTP 客户端      |
+| [markdownify](https://github.com/matthewwithanm/markdownify)       | MIT          | HTML → Markdown |
+| [mistune](https://github.com/lepture/mistune)                      | BSD-3-Clause | Markdown → HTML |
+| [pydantic-settings](https://github.com/pydantic/pydantic-settings) | MIT          | 配置管理         |
+| [PyYAML](https://github.com/yaml/pyyaml)                           | MIT          | YAML 解析        |
+| [typer](https://github.com/fastapi/typer)                          | MIT          | CLI 框架         |
 
 运行时传递依赖包括：[beautifulsoup4](https://code.launchpad.net/beautifulsoup)、[certifi](https://github.com/certifi/python-certifi)、[click](https://github.com/pallets/click)、[h11](https://github.com/python-hyper/h11)、[httpcore](https://github.com/encode/httpcore)、[idna](https://github.com/kjd/idna)、[markdown-it-py](https://github.com/executablebooks/markdown-it-py)、[rich](https://github.com/Textualize/rich)、[shellingham](https://github.com/sarugaku/shellingham)、[soupsieve](https://github.com/facelessuser/soupsieve) 等。

@@ -193,19 +193,19 @@ def test_find_reverse_converter_found():
     md_to_html = converters["markdown_to_html"]
     html_to_md = converters["html_to_markdown"]
 
-    # html → md 的反向是 md → html
-    rev = translator.find_reverse_converter(html_to_md.target, html_to_md.source)
+    # html → md 的反向是 md → html（通过 _find_out_converter）
+    rev = translator._find_out_converter(html_to_md.source, html_to_md.target)
     assert rev is not None
     assert rev.source == md_to_html.source
     assert rev.target == md_to_html.target
 
 
-def test_find_reverse_converter_not_found():
+def test_find_out_converter_not_found():
     """找不到反向转换器时返回 None"""
     translator = Translator("youdao", {"app_key": "114514", "app_secret": "1919810"})
     html_fmt = Format(name="html", extensions={".html"}, mime_type="text/html")
     unknown_fmt = Format(name="unknown", extensions={".unk"})
-    rev = translator.find_reverse_converter(html_fmt, unknown_fmt)
+    rev = translator._find_out_converter(html_fmt, unknown_fmt)
     assert rev is None
 
 
@@ -220,7 +220,7 @@ def test_translate_with_adapter():
     from otto_trans.adapter.srt import SRTAdapter
 
     srt_content = b"1\n00:00:01,000 --> 00:00:02,000\nhello\n"
-    result = translator.translate_with_adapter(srt_content, "en", "zh", SRTAdapter)
+    result = translator._translate_with_adapter(srt_content, "en", "zh", SRTAdapter)
     assert "你好".encode() in result
 
 
@@ -245,5 +245,5 @@ def test_translate_with_adapter_nested_segments():
                 result += "|" + translated[0].children[0].text
             return result.encode()
 
-    result = translator.translate_with_adapter(b"", "en", "zh", NestedAdapter)
+    result = translator._translate_with_adapter(b"", "en", "zh", NestedAdapter)
     assert result == "你好|世界".encode()

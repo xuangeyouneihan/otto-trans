@@ -5,15 +5,13 @@ import shutil
 import sys
 from importlib.metadata import version as _pkg_version
 from pathlib import Path
-from typing import TextIO
+from typing import Callable, TextIO
 from urllib.parse import urlparse
 
 import httpx
 import typer
 
-from .adapter.base import BaseAdapter
 from .config.settings import Settings
-from .converter.base import BaseConverter
 from .core.cache import Cache
 from .core.translator import Translator
 from .utils.format import Format
@@ -40,6 +38,7 @@ def _format_results(results: list[str], *, sep_char: str | None = None) -> str:
     parts: list[str] = []
     for i, r in enumerate(results):
         if i > 0:
+            # 输出分隔线，并根据前后文本自动调整空行数量
             prev_end = "\n" if parts[-1].endswith("\n") else "\n\n"
             next_start = "\n" if r.startswith("\n") else "\n\n"
             parts.append(f"{prev_end}{sep}{next_start}")
@@ -243,6 +242,7 @@ def _build_help_epilog() -> str:
         "",
     ]
 
+    # 交互提示根据操作系统动态调整，Windows 上结束提示 Ctrl-Z + 回车，Unix 上提示 Ctrl-D
     interactive_prompt = (
         "请输入要翻译的文本（多段用只包含 '===' 的行分隔，输入 EOF 结束）："
     )
@@ -311,11 +311,15 @@ def _paragraphs(lines: list[str]) -> list[str]:
     for line in lines:
         line_stripped = line.rstrip("\n\r")
         if re.fullmatch(r"\s*(=\s*){3,}", line_stripped):
+            # 分隔符行，只能包含空白和至少三个等号，等号之间可以有空白
+            # 遇到分隔符行时开始新段落
             groups.append("")
             continue
         if groups[-1]:
+            # 当前段落已有内容，把新行追加到当前段落
             groups[-1] += "\n" + line_stripped
         else:
+            # 当前段落没有内容，直接设置为新行（避免开头多余的换行）
             groups[-1] = line_stripped
     return [g for g in groups if g]
 
@@ -329,7 +333,7 @@ def _read_lines(prompt: str) -> list[str]:
             lines.append(input())
         except EOFError:
             break
-    return _paragraphs(lines)
+    return _paragraphs(lines)  # 按分隔符拆分段落
 
 
 # ── 翻译流程 ────────────────────────────────────────────────
@@ -340,11 +344,12 @@ def _process_texts(
     paths: list[tuple[Path | str | TextIO, Path | TextIO]],
     src_lang: str,
     tgt_lang: str,
-    engine: str,
-    options: dict,
+    translator: Translator,
 ):
     if not paths:
+        # 无文件路径
         if not texts:
+            # 交互模式，提示用户输入文本，支持多段输入和分隔符
             if sys.stdin.isatty():
                 prompt = (
                     "请输入要翻译的文本（多段用只包含 '===' 的行分隔，输入 EOF 结束）："
@@ -356,37 +361,46 @@ def _process_texts(
                         prompt = "请输入要翻译的文本（多段用只包含 '===' 的行分隔，在空行按下 Ctrl-D 结束）："
                 texts = _read_lines(prompt)
             else:
-                texts = [line for line in sys.stdin.read().splitlines() if line]
+                # 实际上应该不会走到这里，因为 _classify_paths 已经保证了非交互式 stdin 时 paths 不会空
+                texts = _paragraphs([
+                    line for line in sys.stdin.read().splitlines() if line
+                ])
 
             if len(texts) <= 0 or all(not t.strip() for t in texts):
                 typer.echo("未输入任何文本，退出。", err=True)
                 raise typer.Exit(1)
         else:
-            texts = [" ".join(texts)]
+            # 命令行参数提供了文本，直接使用，按分隔符拆分段落
+            texts = _paragraphs([line for line in " ".join(texts).splitlines() if line])
 
-        translator = Translator(engine, options)
+        # 翻译
         results = translator.translate_texts(texts, src_lang, tgt_lang)
         if len(results) > 1:
+            # 多段翻译结果用分隔线连接输出，自动管理空行间距
             typer.echo(_format_results(results))
         else:
+            # 单段直接输出
             typer.echo(results[0])
 
     else:
+        # 文件路径模式，读取所有文件内容，按路径顺序翻译后写回
         contents: list[str] = []
         for i, _ in paths:
             if isinstance(i, Path):
+                # 本地路径，自动检测编码读取文本内容
                 raw = i.read_bytes()
                 content = raw.decode(detect_encoding(raw))
             elif isinstance(i, str):
+                # URL，发起 GET 请求读取文本内容，自动检测编码
                 resp = httpx.get(i, follow_redirects=True, timeout=60.0)
                 resp.raise_for_status()
                 content = resp.content.decode(detect_encoding(resp.content))
             else:
+                # Stdin，直接读取文本内容
                 content = i.read()
+            # 统一换行符为 \n，翻译后再写回时根据目标平台调整为对应的行结束符
             content = content.replace("\r\n", "\n").replace("\r", "\n")
             contents.append(content)
-
-        translator = Translator(engine, options)
 
         if len(paths) == 1:
             # 单 path：按 === 拆段落翻译，统一格式化输出
@@ -403,10 +417,13 @@ def _process_texts(
             # 多 path：一对一翻译，逐文件写回
             results = translator.translate_texts(contents, src_lang, tgt_lang)
             for idx, (_, output) in enumerate(paths):
+                # 多段翻译结果用分隔线连接输出，自动管理空行间距
                 if isinstance(output, Path):
+                    # 本地文件，写回时统一换行符为对应平台的行结束符
                     results[idx] = results[idx].replace("\n", os.linesep)
                     output.write_text(results[idx], encoding="utf-8")
                 else:
+                    # Stdout
                     output.write(results[idx])
                     output.flush()
 
@@ -416,206 +433,68 @@ async def _read_file_content(
 ) -> bytes:
     """从 Path / URL / TextIO 读取文件内容。"""
     if isinstance(source, Path):
+        # Path
         return source.read_bytes()
     if isinstance(source, str):
+        # URL
         resp = httpx.get(source, follow_redirects=True, timeout=120.0)
         resp.raise_for_status()
         return resp.content
+    # Stdin
     return source.buffer.read()
 
 
 def _write_file_content(
-    target: Path | TextIO, content: bytes, out_fmt: Format, in_fmt: Format
+    target: Path | TextIO,
+    content: bytes,
+    out_fmt: Format | str,
+    in_fmt: Format | str,
+    on_warning: Callable[[str], None] = lambda msg: typer.echo(msg, err=True),
 ) -> None:
     """写入文件，格式不一致时自动修正扩展名。"""
     if isinstance(target, Path):
+        # Path，输出格式与输入格式不一致时自动修正扩展名
         output = target
         if out_fmt != in_fmt:
-            ext = next(iter(out_fmt.extensions), "")
+            ext = ""
+            if isinstance(out_fmt, Format):
+                ext = next(iter(out_fmt.extensions), "")
+            elif out_fmt.startswith("."):
+                ext = out_fmt
+            else:
+                ext = "." + out_fmt
             output = target.with_suffix(ext)
+
+        out_fmt_str = (
+            f"{out_fmt.name}（{', '.join(sorted(out_fmt.extensions))}）"
+            if isinstance(out_fmt, Format)
+            else out_fmt
+        )
+        in_fmt_str = (
+            f"{in_fmt.name}（{', '.join(sorted(in_fmt.extensions))}）"
+            if isinstance(in_fmt, Format)
+            else in_fmt
+        )
+        on_warning(
+            f"输出格式为 {out_fmt_str}，与输入格式 {in_fmt_str} 不一致，已自动调整输出路径为 {output}"
+        )
         output.write_bytes(content)
     else:
+        # Stdout
         target.buffer.write(content)
         target.flush()
-
-
-def _parse_converter(converter: str, native: bool) -> tuple[str, str]:
-    """解析 converter 字符串，返回 (input_name, output_name)。
-
-    - a::b → 输入 a，输出 b
-    - a::  → 仅输入 a
-    - ::b  → 仅输出 b
-    - a（无 ::）：引擎原生支持 → 输出；不支持 → 输入
-    """
-    if "::" in converter:
-        left, right = converter.split("::", 1)
-        return left.strip(), right.strip()
-    if native:
-        return "", converter.strip()
-    return converter.strip(), ""
-
-
-def _resolve_routing(
-    translator: Translator,
-    in_fmt: Format,
-    converter: str,
-    adapter: str,
-    native: bool,
-) -> tuple[
-    "type[BaseConverter] | None",  # input converter class
-    "type[BaseConverter] | None",  # output converter class
-    "type[BaseAdapter] | None",  # adapter class
-    bool,  # use_fallback
-]:
-    """解析 converter/adapter 路由，打印配置级警告，返回路由参数。"""
-    in_conv_cls = out_conv_cls = None
-
-    if adapter:
-        adp_cls = translator.adapters().get(adapter)
-        if adp_cls is None:
-            typer.echo(f"未知适配器：{adapter}，尝试自动发现", err=True)
-            return None, None, None, True
-        if native:
-            typer.echo("引擎原生支持该格式，忽略适配器", err=True)
-            return None, None, None, False
-        if adp_cls.source != in_fmt:
-            typer.echo("适配器不支持该格式，尝试自动发现", err=True)
-            return None, None, None, True
-        return None, None, adp_cls, False
-
-    if converter:
-        in_name, out_name = _parse_converter(converter, native)
-        if in_name:
-            in_conv_cls = translator.converters().get(in_name)
-            if in_conv_cls is None:
-                typer.echo(f"未知转换器：{in_name}，尝试自动发现", err=True)
-        if out_name:
-            out_conv_cls = translator.converters().get(out_name)
-            if out_conv_cls is None:
-                typer.echo(f"未知转换器：{out_name}", err=True)
-                out_conv_cls = None
-
-        if native:
-            if in_conv_cls:
-                typer.echo("引擎原生支持该格式，忽略输入转换器", err=True)
-            return None, out_conv_cls, None, False
-
-        # Engine doesn't support natively
-        if in_conv_cls is None:
-            # No (valid) input converter specified → fallback, keep output converter
-            return None, out_conv_cls, None, True
-
-        if in_conv_cls.source != in_fmt:
-            typer.echo("输入转换器与输入格式不匹配，尝试自动发现", err=True)
-            return None, out_conv_cls, None, True
-
-        target = translator.engine.supports_format(in_conv_cls.target)
-        if target is None:
-            typer.echo("指定转换器无法转为引擎支持的格式，尝试自动发现", err=True)
-            return None, out_conv_cls, None, True
-
-        return in_conv_cls, out_conv_cls, None, False
-
-    # No converter, no adapter
-    return None, None, None, False
-
-
-async def _route_converter(
-    content: bytes,
-    src_lang: str,
-    tgt_lang: str,
-    translator: Translator,
-    in_fmt: Format,
-    in_conv_cls: "type[BaseConverter] | None",
-    out_conv_cls: "type[BaseConverter] | None",
-    native: bool,
-    use_fallback: bool,
-) -> tuple[bytes, Format]:
-    """Converter 路由：单文件翻译。"""
-    if use_fallback:
-        result, out_fmt = await translator.translate_file(
-            content, src_lang, tgt_lang, in_fmt
-        )
-    elif native:
-        result, out_fmt = await translator.engine.translate_file(
-            content, src_lang, tgt_lang, in_fmt
-        )
-    else:
-        assert in_conv_cls is not None
-        target = translator.engine.supports_format(in_conv_cls.target)
-        assert target is not None
-        converted = in_conv_cls.convert(content)
-        result, out_fmt = await translator.engine.translate_file(
-            converted, src_lang, tgt_lang, target
-        )
-
-    # Output converter
-    if out_fmt != in_fmt:
-        reverted = False
-        # 优先使用用户指定的输出转换器
-        if out_conv_cls is not None:
-            if out_conv_cls.source == out_fmt and out_conv_cls.target == in_fmt:
-                result = out_conv_cls.convert(result)
-                out_fmt = in_fmt
-                reverted = True
-        # 用户没指定或指定了不适配 → 自动查找已有转换器
-        if not reverted:
-            rev = translator.find_reverse_converter(out_fmt, in_fmt)
-            if rev:
-                result = rev.convert(result)
-                out_fmt = in_fmt
-            else:
-                typer.echo("输出格式无法转回原格式，保持输出格式不变", err=True)
-
-    return result, out_fmt
-
-
-async def _route_adapter(
-    content: bytes,
-    src_lang: str,
-    tgt_lang: str,
-    translator: Translator,
-    in_fmt: Format,
-    adp_cls: "type[BaseAdapter]",
-    native: bool,
-    use_fallback: bool,
-) -> tuple[bytes, Format]:
-    """Adapter 路由：单文件翻译。"""
-    if use_fallback:
-        return await translator.translate_file(content, src_lang, tgt_lang, in_fmt)
-
-    if native:
-        return await translator.engine.translate_file(
-            content, src_lang, tgt_lang, in_fmt
-        )
-
-    result = translator.translate_with_adapter(content, src_lang, tgt_lang, adp_cls)
-    return result, adp_cls.source
 
 
 def _process_files(
     paths: list[tuple[Path | str | TextIO, Path | TextIO]],
     src_lang: str,
     tgt_lang: str,
-    engine: str,
-    options: dict,
+    translator: Translator,
     fmt: str,
-    converter: str = "",
-    adapter: str = "",
+    converter: str | None = None,
+    adapter: str | None = None,
     jobs: int = 0,
 ):
-    translator = Translator(engine, options)
-    in_fmt = _resolve_fmt_str(fmt, translator.engine.formats)
-    native = translator.engine.supports_format(in_fmt) is not None
-
-    in_conv_cls, out_conv_cls, adp_cls, use_fallback = _resolve_routing(
-        translator,
-        in_fmt,
-        converter,
-        adapter,
-        native,
-    )
-
     sem = asyncio.Semaphore(jobs) if jobs > 0 else None
 
     async def run():
@@ -630,70 +509,31 @@ def _process_files(
             else:
                 result = await _do_process(p)
             done += 1
-            typer.echo(f"\r已完成 {done} / {total} 项翻译", nl=False, err=True)
+            footer = f"\r已完成 {done} / {total} 项翻译"
+            translator.on_warning.footer = footer
+            typer.echo(footer, nl=False, err=True)
             if done == total:
-                typer.echo(err=True)
+                typer.echo("\r\033[K", nl=False, err=True)
+                typer.echo("所有翻译已完成！", err=True)
             return result
 
         async def _do_process(p):
             content = await _read_file_content(p[0])
-            if adp_cls is not None or (adapter and use_fallback):
-                result, out_fmt = await _route_adapter(
-                    content,
-                    src_lang,
-                    tgt_lang,
-                    translator,
-                    in_fmt,
-                    adp_cls,
-                    native,
-                    use_fallback,
-                )
-            elif in_conv_cls is not None or out_conv_cls is not None or converter:
-                result, out_fmt = await _route_converter(
-                    content,
-                    src_lang,
-                    tgt_lang,
-                    translator,
-                    in_fmt,
-                    in_conv_cls,
-                    out_conv_cls,
-                    native,
-                    use_fallback,
-                )
-            else:
-                result, out_fmt = await translator.translate_file(
-                    content,
-                    src_lang,
-                    tgt_lang,
-                    in_fmt,
-                )
-            _write_file_content(p[1], result, out_fmt, in_fmt)
+            result, out_fmt = await translator.translate_file(
+                content,
+                src_lang,
+                tgt_lang,
+                fmt,
+                converter,
+                adapter,
+            )
+            _write_file_content(p[1], result, out_fmt, fmt, translator.on_warning)
             return out_fmt
 
         typer.echo(f"开始翻译 {total} 项...", nl=False, err=True)
         return await asyncio.gather(*[process_one(p) for p in paths])
 
-    out_fmts = asyncio.run(run()) if paths else [in_fmt]
-    if out_fmts and out_fmts[0] != in_fmt:
-        typer.echo(
-            f"警告：输入格式为 {in_fmt.name}（{', '.join(sorted(in_fmt.extensions))}），"
-            f"引擎实际输出为 {out_fmts[0].name}（{', '.join(sorted(out_fmts[0].extensions))}）",
-            err=True,
-        )
-
-
-# ── 格式辅助 ────────────────────────────────────────────────
-
-
-def _resolve_fmt_str(fmt: str, formats: set[Format]) -> Format:
-    """将格式字符串解析为 Format 对象。"""
-    for f in formats:
-        if f == fmt:  # Format.__eq__ 支持 str 比较
-            return f
-    # 如果匹配不上，返回一个虚拟 Format 用于比较（out_fmt != in_fmt 仍然会触发提醒）
-    if fmt.endswith((".yaml", ".yml")):
-        return Format(name="yaml", extensions={".yaml", ".yml"})
-    return Format(name=fmt, extensions={fmt if fmt.startswith(".") else f".{fmt}"})
+    asyncio.run(run())
 
 
 # ── 路径工具 ────────────────────────────────────────────────
@@ -853,6 +693,25 @@ def _classify_paths(
 
 
 # ── CLI ─────────────────────────────────────────────────────
+
+
+class _StickyFooter:
+    """确保进度条始终在警告下方的 on_warning。"""
+
+    def __init__(self, footer: str = ""):
+        self.footer = footer
+
+    @staticmethod
+    def warn(message: str) -> None:
+        typer.echo(message, err=True)
+
+    def __call__(self, msg: str) -> None:
+        # 擦除当前进度行 → 打印警告 → 重印进度
+        if self.footer:
+            typer.echo("\r\033[K", nl=False, err=True)
+        self.warn(msg)
+        if self.footer:
+            typer.echo(self.footer, nl=False, err=True)
 
 
 def _reset_config(value: bool):
@@ -1034,7 +893,8 @@ def main(
             base_opts["config_name"] = config
 
     engine_opts = {**base_opts, **cli_opts}
-
+    sticky_footer = _StickyFooter()
+    translator = Translator(engine, engine_opts, on_warning=sticky_footer)
     cli_paths = _classify_paths(paths, exists_texts=bool(texts))
 
     if fmt:
@@ -1047,15 +907,14 @@ def main(
             cli_paths,
             src_lang,
             tgt_lang,
-            engine,
-            engine_opts,
+            translator,
             fmt,
-            converter,
-            adapter,
+            converter if converter else None,
+            adapter if adapter else None,
             jobs,
         )
     else:
-        _process_texts(texts, cli_paths, src_lang, tgt_lang, engine, engine_opts)
+        _process_texts(texts, cli_paths, src_lang, tgt_lang, translator)
 
     # 将输出编码改回去
     try:

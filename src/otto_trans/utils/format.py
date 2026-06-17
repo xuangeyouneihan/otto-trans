@@ -17,7 +17,15 @@ class Format:
                 or other in [e[1:] for e in self.extensions if e.startswith(".")]
             )
         if isinstance(other, Format):
-            return self.name == other.name and self.extensions == other.extensions
+            self_exts = {e if e.startswith(".") else f".{e}" for e in self.extensions}
+            other_exts = {e if e.startswith(".") else f".{e}" for e in other.extensions}
+            return (
+                (self_exts and other_exts)
+                and (self_exts.issubset(other_exts) or other_exts.issubset(self_exts))
+            ) or (
+                (not self_exts and not other_exts)
+                and (self.name == other.name or self.mime_type == other.mime_type)
+            )
         return super().__eq__(other)
 
     def __hash__(self):

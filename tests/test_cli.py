@@ -10,12 +10,9 @@ from otto_trans.cli import (
     _classify_paths,
     _format_results,
     _paragraphs,
-    _parse_converter,
-    _resolve_fmt_str,
     _resolve_source,
     _sep_char,
 )
-from otto_trans.utils.format import Format
 
 # ── _sep_char ───────────────────────────────────────────────
 
@@ -93,27 +90,6 @@ def test_resolve_source_invalid_url(monkeypatch):
         _resolve_source("https://invalid.example.com")
 
 
-# ── _resolve_fmt_str ────────────────────────────────────────
-
-
-def test_resolve_fmt_str_name():
-    fmt = Format(name="html", extensions={".html"}, mime_type="text/html")
-    result = _resolve_fmt_str("html", {fmt})
-    assert result == fmt
-
-
-def test_resolve_fmt_str_extension():
-    fmt = Format(name="html", extensions={".html", ".htm"}, mime_type="text/html")
-    result = _resolve_fmt_str(".html", {fmt})
-    assert result == fmt
-
-
-def test_resolve_fmt_str_fallback():
-    result = _resolve_fmt_str("custom", set())
-    assert result.name == "custom"
-    assert ".custom" in result.extensions
-
-
 # ── _classify_paths ─────────────────────────────────────────
 
 
@@ -145,36 +121,3 @@ def test_classify_paths_pipe_to_file(tmp_path):
         assert len(result) == 1
         assert result[0][0] is sys.stdin
         assert result[0][1] == f_out
-
-
-# ── _parse_converter ────────────────────────────────────────
-
-
-def test_parse_converter_pair():
-    """a::b → 输入 a，输出 b"""
-    assert _parse_converter("conv1::conv2", native=False) == ("conv1", "conv2")
-
-
-def test_parse_converter_input_only():
-    """a:: → 仅输入 a"""
-    assert _parse_converter("conv1::", native=False) == ("conv1", "")
-
-
-def test_parse_converter_output_only():
-    """::b → 仅输出 b"""
-    assert _parse_converter("::conv2", native=False) == ("", "conv2")
-
-
-def test_parse_converter_no_colon_native():
-    """无 :: + 引擎原生支持 → 作为输出转换器"""
-    assert _parse_converter("conv1", native=True) == ("", "conv1")
-
-
-def test_parse_converter_no_colon_not_native():
-    """无 :: + 引擎不支持 → 作为输入转换器"""
-    assert _parse_converter("conv1", native=False) == ("conv1", "")
-
-
-def test_parse_converter_empty_both():
-    """:: → 两边都空"""
-    assert _parse_converter("::", native=False) == ("", "")

@@ -9,7 +9,7 @@ import httpx
 
 from ..utils.format import Format, UnsupportedFormatError
 from ..utils.html import fix_html
-from ..utils.text import detect_encoding
+from ..utils.text import detect_encoding, utf_8
 from .base import BaseTranslator, UnsupportedLanguageError
 
 
@@ -644,6 +644,7 @@ class YoudaoTranslator(BaseTranslator):
             content, src_lang, tgt_lang, file_type
         )
         out_fmt = self._format_by_mime(content_type) or fmt
+        result = utf_8(result, out_fmt)
         return result, out_fmt
 
     async def _translate_doc(
