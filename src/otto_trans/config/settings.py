@@ -20,10 +20,9 @@ class Settings(BaseSettings):
     @classmethod
     def load(cls) -> "Settings":
         config = yaml.safe_load(cls.config_path.read_text(encoding="utf-8")) or {}
+        config = {k: v for k, v in config.items() if v is not None}
         settings = cls(**config)
         settings.default_engine = settings.default_engine.lower().strip()
-        if not settings.default_source:
-            settings.default_source = "auto"
         settings.default_source = settings.default_source.lower().strip()
         settings.default_target = settings.default_target.lower().strip()
         return settings
@@ -38,8 +37,8 @@ class Settings(BaseSettings):
 
         lines = [
             "default_engine: # 默认翻译引擎",
-            'default_source: # 默认源语言，ISO 639 语言代码，支持 -Hans/-Hant/-Cyrl/-Latn 文字标记，如"zh-Hans"、"en"。auto 表示自动检测',
-            'default_target: # 默认目标语言，ISO 639 语言代码，支持 -Hans/-Hant/-Cyrl/-Latn 文字标记，"zh-Hans"、"en"',
+            "default_source: # 默认源语言，自带的 3 个翻译引擎支持 ISO 639 语言代码，如 \"zh-Hans\"、\"en\" 等。auto 表示自动检测",
+            "default_target: # 默认目标语言，自带的 3 个翻译引擎支持 ISO 639 语言代码，如 \"zh-Hans\"、\"en\" 等",
             "",
             "# 引擎配置",
             "engines:",
@@ -49,11 +48,13 @@ class Settings(BaseSettings):
             engine_cls = existing_engines[name]
             if not engine_cls.options:
                 continue  # 没有选项的引擎不需要添加到示例配置中
+            lines.append("")
             friendly = engine_cls.friendly_name
             if friendly:
                 lines.append(f"  {name}: # {friendly}")
             else:
                 lines.append(f"  {name}:")
+            lines.append("")
             lines.append("    default:")
             for opt_name, opt_meta in engine_cls.options.items():
                 desc = opt_meta.get("description", "")

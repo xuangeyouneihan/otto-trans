@@ -157,7 +157,7 @@ def _build_help_epilog() -> str:
     # 转换器
     converters = Translator.converters()
     if converters:
-        lines.append("转换器（-c / --converter），格式为 [输入::]输出：")
+        lines.append("转换器（-c / --converter），格式为 in_conv::out_conv：")
         for cname, ccls in converters.items():
             lines += [""] * 3
             lines.append(f"  {cname}:")
@@ -194,7 +194,7 @@ def _build_help_epilog() -> str:
         "",
         "  不提供文本参数时，程序进入逐行输入模式。",
         "",
-        "  多段文本用 '===' 行分隔，空行 Ctrl-Z + 回车（Windows）/ Ctrl-D（Linux / macOS）退出。",
+        "  多段文本用 \"===\" 行分隔，空行 Ctrl-Z + 回车（Windows）/ Ctrl-D（Linux / macOS）退出。",
         "",
         "",
         "",
@@ -244,13 +244,13 @@ def _build_help_epilog() -> str:
 
     # 交互提示根据操作系统动态调整，Windows 上结束提示 Ctrl-Z + 回车，Unix 上提示 Ctrl-D
     interactive_prompt = (
-        "请输入要翻译的文本（多段用只包含 '===' 的行分隔，输入 EOF 结束）："
+        "请输入要翻译的文本（多段用只包含 \"===\" 的行分隔，输入 EOF 结束）："
     )
     match os.name:
         case "nt":
-            interactive_prompt = "请输入要翻译的文本（多段用只包含 '===' 的行分隔，在空行按下 Ctrl-Z + 回车结束）："
+            interactive_prompt = "请输入要翻译的文本（多段用只包含 \"===\" 的行分隔，在空行按下 Ctrl-Z + 回车结束）："
         case "posix":
-            interactive_prompt = "请输入要翻译的文本（多段用只包含 '===' 的行分隔，在空行按下 Ctrl-D 结束）："
+            interactive_prompt = "请输入要翻译的文本（多段用只包含 \"===\" 的行分隔，在空行按下 Ctrl-D 结束）："
 
     interactive_eof = "EOF（Windows：Ctrl-Z + 回车；Linux / macOS：Ctrl-D）"
     match os.name:
@@ -352,13 +352,13 @@ def _process_texts(
             # 交互模式，提示用户输入文本，支持多段输入和分隔符
             if sys.stdin.isatty():
                 prompt = (
-                    "请输入要翻译的文本（多段用只包含 '===' 的行分隔，输入 EOF 结束）："
+                    "请输入要翻译的文本（多段用只包含 \"===\" 的行分隔，输入 EOF 结束）："
                 )
                 match os.name:
                     case "nt":
-                        prompt = "请输入要翻译的文本（多段用只包含 '===' 的行分隔，在空行按下 Ctrl-Z + 回车结束）："
+                        prompt = "请输入要翻译的文本（多段用只包含 \"===\" 的行分隔，在空行按下 Ctrl-Z + 回车结束）："
                     case "posix":
-                        prompt = "请输入要翻译的文本（多段用只包含 '===' 的行分隔，在空行按下 Ctrl-D 结束）："
+                        prompt = "请输入要翻译的文本（多段用只包含 \"===\" 的行分隔，在空行按下 Ctrl-D 结束）："
                 texts = _read_lines(prompt)
             else:
                 # 实际上应该不会走到这里，因为 _classify_paths 已经保证了非交互式 stdin 时 paths 不会空
@@ -454,7 +454,6 @@ def _write_file_content(
     """写入文件，格式不一致时自动修正扩展名。"""
     if isinstance(target, Path):
         # Path，输出格式与输入格式不一致时自动修正扩展名
-        output = target
         if out_fmt != in_fmt:
             ext = ""
             if isinstance(out_fmt, Format):
@@ -463,24 +462,38 @@ def _write_file_content(
                 ext = out_fmt
             else:
                 ext = "." + out_fmt
-            output = target.with_suffix(ext)
+            target = target.with_suffix(ext)
 
-        out_fmt_str = (
-            f"{out_fmt.name}（{', '.join(sorted(out_fmt.extensions))}）"
-            if isinstance(out_fmt, Format)
-            else out_fmt
-        )
-        in_fmt_str = (
-            f"{in_fmt.name}（{', '.join(sorted(in_fmt.extensions))}）"
-            if isinstance(in_fmt, Format)
-            else in_fmt
-        )
-        on_warning(
-            f"输出格式为 {out_fmt_str}，与输入格式 {in_fmt_str} 不一致，已自动调整输出路径为 {output}"
-        )
-        output.write_bytes(content)
+            out_fmt_str = (
+                f"{out_fmt.name}（{', '.join(sorted(out_fmt.extensions))}）"
+                if isinstance(out_fmt, Format)
+                else out_fmt
+            )
+            in_fmt_str = (
+                f"{in_fmt.name}（{', '.join(sorted(in_fmt.extensions))}）"
+                if isinstance(in_fmt, Format)
+                else in_fmt
+            )
+            on_warning(
+                f"输出格式为 {out_fmt_str}，与输入格式 {in_fmt_str} 不一致，已自动调整输出路径为 {target}"
+            )
+        target.write_bytes(content)
     else:
         # Stdout
+        if out_fmt != in_fmt:
+            out_fmt_str = (
+                f"{out_fmt.name}（{', '.join(sorted(out_fmt.extensions))}）"
+                if isinstance(out_fmt, Format)
+                else out_fmt
+            )
+            in_fmt_str = (
+                f"{in_fmt.name}（{', '.join(sorted(in_fmt.extensions))}）"
+                if isinstance(in_fmt, Format)
+                else in_fmt
+            )
+            on_warning(
+                f"输出格式为 {out_fmt_str}，与输入格式 {in_fmt_str} 不一致，但输出目标为标准输出，无法调整路径，请确保接收端正确处理格式差异"
+            )
         target.buffer.write(content)
         target.flush()
 
@@ -539,7 +552,7 @@ def _process_files(
 # ── 路径工具 ────────────────────────────────────────────────
 
 
-def _resolve_source(source: str) -> Path | str:
+def _resolve_path(source: str) -> Path | str:
     """将用户输入的路径字符串解析为 Path（本地）或 str（远程 URL）。
 
     支持：
@@ -573,10 +586,11 @@ def _resolve_source(source: str) -> Path | str:
     return Path(s)
 
 
-def _ensure_readable(source: Path | str) -> None:
+def _ensure_readable(source: Path | str) -> bool:
+    result = True
     try:
         if isinstance(source, str):
-            return  # URL 已在 _resolve_source 中验证
+            return result  # URL 已在 _resolve_source 中验证
         if not source.exists():
             raise FileNotFoundError(f"文件不存在：{source}")
         if not source.is_file():
@@ -585,33 +599,65 @@ def _ensure_readable(source: Path | str) -> None:
             raise PermissionError(f"无读取权限：{source}")
     except (FileNotFoundError, IsADirectoryError, PermissionError) as e:
         typer.echo(f"无法读取：{e}", err=True)
-        raise typer.Exit(1)
+        result = False
+    return result
 
 
-def _ensure_writable(path: Path) -> None:
+def _ensure_writable(path: Path) -> bool:
+    result = True
+    new_parents = [p for p in path.parents if not p.exists()]
     try:
-        new_parents = [p for p in path.parents if not p.exists()]
         path.parent.mkdir(parents=True, exist_ok=True)
         path.touch()
         path.unlink()
-        for parent in new_parents:
-            shutil.rmtree(parent, ignore_errors=True)
     except (OSError, PermissionError) as e:
         typer.echo(f"无法写入 {path}：{e}", err=True)
-        raise typer.Exit(1)
+        # 清理本次新建的上级目录，避免残留空目录
+        for parent in new_parents:
+            shutil.rmtree(parent, ignore_errors=True)
+        result = False
+    else:
+        for parent in new_parents:
+            shutil.rmtree(parent, ignore_errors=True)
+
+    return result
+
+
+def _parse_input(p: str) -> Path | str | None:
+    """解析输入路径，支持本地路径和 URL。失败时打印错误并返回 None。"""
+    try:
+        return _resolve_path(p)
+    except Exception as e:
+        typer.echo(f"路径参数格式错误：{p}，{e}", err=True)
+        return None
+
+
+def _parse_output(p: str) -> Path | None:
+    """解析输出路径，仅限本地路径。失败或为 URL 时打印错误并返回 None。"""
+    try:
+        result = _resolve_path(p)
+    except Exception as e:
+        typer.echo(f"路径参数格式错误：{p}，{e}", err=True)
+        return None
+    if not isinstance(result, Path):
+        typer.echo(f"路径参数格式错误：{p}，输出路径不能是 URL", err=True)
+        return None
+    return result
 
 
 def _classify_paths(
-    paths: list[str], exists_texts: bool
+    paths: list[str],
 ) -> list[tuple[Path | str | TextIO, Path | TextIO]]:
     """解析路径参数，返回 (输入, 输出) 对。
 
     输入可以是 Path（本地）、str（远程 URL）或 TextIO（stdin）。
     """
     both: list[tuple[Path | str | TextIO, Path | TextIO]] = []
-    smart: Path | str | None = None
+    smart: str | None = None
     in_only: Path | str | None = None
     out_only: Path | None = None
+
+    path_error = False
 
     for p in paths:
         p = p.strip()
@@ -621,28 +667,36 @@ def _classify_paths(
             if smart is not None:
                 typer.echo(f"路径参数格式错误：{p}，多个智能路径", err=True)
                 raise typer.Exit(1)
-            smart = _resolve_source(p)
-        elif p.strip() == "::":
+            smart = (
+                p  # 智能路径，后续根据是否有管道输入判断是输入还是输出，解析也放到后面
+            )
+        elif p == "::":
             continue
-        elif p.strip().startswith("::"):
+        elif p.startswith("::"):
             if out_only is not None:
                 typer.echo(f"路径参数格式错误：{p}，多个仅输出路径", err=True)
                 raise typer.Exit(1)
-            out_only = Path(p[2:].strip())
-            _ensure_writable(out_only)
-        elif p.strip().endswith("::"):
+            out_only = _parse_output(p[2:])
+            if out_only is None or not _ensure_writable(out_only):
+                path_error = True
+        elif p.endswith("::"):
             if in_only is not None:
                 typer.echo(f"路径参数格式错误：{p}，多个仅输入路径", err=True)
                 raise typer.Exit(1)
-            in_only = _resolve_source(p[:-2])
-            _ensure_readable(in_only)
+            in_only = _parse_input(p[:-2])
+            if in_only is None or not _ensure_readable(in_only):
+                path_error = True
         else:
             left, right = p.split("::", 1)
-            left_src = _resolve_source(left)
-            right_path = Path(right.strip())
-            _ensure_readable(left_src)
-            _ensure_writable(right_path)
-            both.append((left_src, right_path))
+            left_src = _parse_input(left)
+            if left_src is None or not _ensure_readable(left_src):
+                path_error = True
+
+            right_path = _parse_output(right)
+            if right_path is None or not _ensure_writable(right_path):
+                path_error = True
+            if left_src is not None and right_path is not None:
+                both.append((left_src, right_path))
 
     # 互斥检查
     specials = sum(x is not None for x in (smart, in_only, out_only))
@@ -655,44 +709,68 @@ def _classify_paths(
         if sys.stdin.isatty():
             typer.echo("路径参数格式错误：仅输出路径必须与管道输入同时使用", err=True)
             raise typer.Exit(1)
-        if exists_texts:
-            typer.echo(
-                "同时提供了文本参数和路径参数，请选择一种方式进行翻译。", err=True
-            )
-            raise typer.Exit(1)
         both.append((sys.stdin, out_only))
     if in_only:
         if not sys.stdin.isatty():
-            if exists_texts:
-                typer.echo(
-                    "同时提供了文本参数和路径参数，请选择一种方式进行翻译。", err=True
-                )
-                raise typer.Exit(1)
             typer.echo("路径参数格式错误：仅输入路径不能与管道输入同时使用", err=True)
             raise typer.Exit(1)
         both.append((in_only, sys.stdout))
     if smart:
         if sys.stdin.isatty():
-            _ensure_readable(smart)
-            both.append((smart, sys.stdout))
+            # isatty() → 无管道，smart 视为输入路径
+            smart_path = _parse_input(smart)
+            if smart_path is not None and _ensure_readable(smart_path):
+                both.append((smart_path, sys.stdout))
+            else:
+                path_error = True
         else:
-            if isinstance(smart, str):
-                typer.echo("URL 不能作为输出目标", err=True)
-                raise typer.Exit(1)
-            if exists_texts:
-                typer.echo(
-                    "同时提供了文本参数和路径参数，请选择一种方式进行翻译。", err=True
-                )
-                raise typer.Exit(1)
-            both.append((sys.stdin, smart))
+            # 有管道输入，smart 视为输出路径
+            smart_path = _parse_output(smart)
+            if smart_path is not None and _ensure_writable(smart_path):
+                both.append((sys.stdin, smart_path))
+            else:
+                path_error = True
 
-    if not sys.stdin.isatty() and not (smart or in_only or out_only or exists_texts):
+    if path_error:
+        raise typer.Exit(1)
+
+    if not sys.stdin.isatty() and not (smart or in_only or out_only):
         both.append((sys.stdin, sys.stdout))
 
     return both
 
 
 # ── CLI ─────────────────────────────────────────────────────
+
+
+def _set_terminal_encodings():
+    """设置终端编码为 UTF-8，返回原始编码以便后续恢复。"""
+    sys_stdin_encoding = sys.stdin.encoding  # 记录本地输入编码
+    sys_stdout_encoding = sys.stdout.encoding  # 记录本地输出编码
+    sys_stderr_encoding = sys.stderr.encoding  # 记录本地提示编码
+    # 更改 std{in,out,err} 编码为 UTF-8，确保中文正常显示
+    try:
+        sys.stdin.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
+        sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
+        sys.stderr.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
+
+    except Exception:
+        pass
+
+    return sys_stdin_encoding, sys_stdout_encoding, sys_stderr_encoding
+
+
+def _restore_terminal_encodings(
+    sys_stdin_encoding, sys_stdout_encoding, sys_stderr_encoding
+):
+    """恢复终端编码为给定的原始值。"""
+    try:
+        sys.stdin.reconfigure(encoding=sys_stdin_encoding)  # type: ignore[union-attr]
+        sys.stdout.reconfigure(encoding=sys_stdout_encoding)  # type: ignore[union-attr]
+        sys.stderr.reconfigure(encoding=sys_stderr_encoding)  # type: ignore[union-attr]
+
+    except Exception:
+        pass
 
 
 class _StickyFooter:
@@ -716,21 +794,39 @@ class _StickyFooter:
 
 def _reset_config(value: bool):
     if value:
+        sys_stdin_encoding, sys_stdout_encoding, sys_stderr_encoding = (
+            _set_terminal_encodings()
+        )
         Settings.reset()
         typer.echo(f"已重置位于 {Settings.config_path} 的配置文件", err=True)
+        _restore_terminal_encodings(
+            sys_stdin_encoding, sys_stdout_encoding, sys_stderr_encoding
+        )
         raise typer.Exit()
 
 
 def _reset_cache(value: bool):
     if value:
+        sys_stdin_encoding, sys_stdout_encoding, sys_stderr_encoding = (
+            _set_terminal_encodings()
+        )
         Cache.reset()
         typer.echo(f"已重置位于 {Cache.db_path} 的缓存", err=True)
+        _restore_terminal_encodings(
+            sys_stdin_encoding, sys_stdout_encoding, sys_stderr_encoding
+        )
         raise typer.Exit()
 
 
 def _version_callback(value: bool):
     if value:
+        sys_stdin_encoding, sys_stdout_encoding, sys_stderr_encoding = (
+            _set_terminal_encodings()
+        )
         typer.echo(f"♿电棍翻译器 {_pkg_version('otto-trans')}")
+        _restore_terminal_encodings(
+            sys_stdin_encoding, sys_stdout_encoding, sys_stderr_encoding
+        )
         raise typer.Exit()
 
 
@@ -744,14 +840,14 @@ def main(
         "auto",
         "-s",
         "--source",
-        help='源语言，ISO 639 语言代码，支持 -Hans/-Hant/-Cyrl/-Latn 文字标记，如"zh-Hans"、"en"等',
+        help="源语言，自带的 3 个翻译引擎支持 ISO 639 语言代码，如 \"zh-Hans\"、\"en\" 等",
         show_default=False,
     ),
     tgt_lang: str = typer.Option(
         "",
         "-t",
         "--target",
-        help='目标语言，ISO 639 语言代码，支持 -Hans/-Hant/-Cyrl/-Latn 文字标记，如"zh-Hans"、"en"等',
+        help="目标语言，自带的 3 个翻译引擎支持 ISO 639 语言代码，如 \"zh-Hans\"、\"en\" 等",
         show_default=False,
     ),
     engine: str = typer.Option(
@@ -818,14 +914,10 @@ def main(
     ),
 ):
     """♿电棍翻译器 — 多引擎命令行翻译工具"""
-    sys_stdout_encoding = sys.stdout.encoding  # 记录本地输出编码
-    sys_stdin_encoding = sys.stdin.encoding  # 记录本地输入编码
-    # 更改 std{in,out} 编码为 UTF-8，确保中文正常显示
-    try:
-        sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
-        sys.stdin.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
-    except Exception:
-        pass
+    # 将 std{in,out,err} 编码改为 UTF-8
+    sys_stdin_encoding, sys_stdout_encoding, sys_stderr_encoding = (
+        _set_terminal_encodings()
+    )
 
     if not Settings.config_path.exists():
         Settings.reset()
@@ -869,7 +961,7 @@ def main(
         typer.echo("并发数（-j / --jobs）不能为负数。", err=True)
         raise typer.Exit(1)
 
-    if texts and paths:
+    if texts and (paths or not sys.stdin.isatty()):
         typer.echo("同时提供了文本参数和路径参数，请选择一种方式进行翻译。", err=True)
         raise typer.Exit(1)
 
@@ -894,34 +986,63 @@ def main(
 
     engine_opts = {**base_opts, **cli_opts}
     sticky_footer = _StickyFooter()
-    translator = Translator(engine, engine_opts, on_warning=sticky_footer)
-    cli_paths = _classify_paths(paths, exists_texts=bool(texts))
 
-    if fmt:
-        if not cli_paths:
-            typer.echo(
-                "文件模式需要指定路径参数（-p / --path）或通过管道输入", err=True
-            )
-            raise typer.Exit(1)
-        _process_files(
-            cli_paths,
-            src_lang,
-            tgt_lang,
-            translator,
-            fmt,
-            converter if converter else None,
-            adapter if adapter else None,
-            jobs,
-        )
-    else:
-        _process_texts(texts, cli_paths, src_lang, tgt_lang, translator)
-
-    # 将输出编码改回去
     try:
-        sys.stdout.reconfigure(encoding=sys_stdout_encoding)  # type: ignore[union-attr]
-        sys.stdin.reconfigure(encoding=sys_stdin_encoding)  # type: ignore[union-attr]
-    except Exception:
-        pass
+        translator = Translator(engine, engine_opts, on_warning=sticky_footer)
+    except (ValueError, TypeError) as e:
+        typer.echo(f"配置错误：{e}", err=True)
+        raise typer.Exit(1)
+
+    cli_paths = _classify_paths(paths)
+
+    try:
+        if fmt:
+            if not cli_paths:
+                typer.echo(
+                    "文件模式需要指定路径参数（-p / --path）或通过管道输入", err=True
+                )
+                raise typer.Exit(1)
+            _process_files(
+                cli_paths,
+                src_lang,
+                tgt_lang,
+                translator,
+                fmt,
+                converter if converter else None,
+                adapter if adapter else None,
+                jobs,
+            )
+        else:
+            _process_texts(texts, cli_paths, src_lang, tgt_lang, translator)
+    except typer.Exit:
+        if fmt:
+            typer.echo("", err=True)
+        if paths:
+            typer.echo("翻译已中断，部分文件可能已写入。", err=True)
+        raise
+    except KeyboardInterrupt:
+        if fmt:
+            typer.echo("", err=True)
+        if paths:
+            typer.echo("翻译已中断，部分文件可能已写入。", err=True)
+        raise typer.Exit(1)
+    except Exception as e:
+        if str(e):
+            if fmt:
+                typer.echo(f"翻译失败：{type(e).__name__}: {e}，部分文件可能已写入。", err=True)
+            else:
+                typer.echo(f"翻译失败：{type(e).__name__}: {e}", err=True)
+        else:
+            if fmt:
+                typer.echo(f"翻译失败：{type(e).__name__}，部分文件可能已写入。", err=True)
+            else:
+                typer.echo(f"翻译失败：{type(e).__name__}", err=True)
+        raise typer.Exit(1)
+
+    # 将 std{in,out,err} 编码改回去
+    _restore_terminal_encodings(
+        sys_stdin_encoding, sys_stdout_encoding, sys_stderr_encoding
+    )
 
 
 if __name__ == "__main__":

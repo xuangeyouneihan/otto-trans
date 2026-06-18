@@ -10,7 +10,7 @@ from otto_trans.cli import (
     _classify_paths,
     _format_results,
     _paragraphs,
-    _resolve_source,
+    _resolve_path,
     _sep_char,
 )
 
@@ -59,13 +59,13 @@ def test_paragraphs_all_separators():
     assert _paragraphs(lines) == []
 
 
-# ── _resolve_source ────────────────────────────────────────
+# ── _resolve_path ───────────────────────────────────────────
 
 
 def test_resolve_source_path(tmp_path):
     f = tmp_path / "test.txt"
     f.write_text("hello")
-    resolved = _resolve_source(str(f))
+    resolved = _resolve_path(str(f))
     assert resolved == f
 
 
@@ -77,7 +77,7 @@ def test_resolve_source_url(monkeypatch):
         "otto_trans.cli.httpx.head",
         lambda *a, **kw: mock_resp,
     )
-    resolved = _resolve_source("https://example.com/file.txt")
+    resolved = _resolve_path("https://example.com/file.txt")
     assert resolved == "https://example.com/file.txt"
 
 
@@ -87,7 +87,7 @@ def test_resolve_source_invalid_url(monkeypatch):
         Mock(side_effect=httpx.HTTPError("no")),
     )
     with pytest.raises(ValueError, match="无法访问"):
-        _resolve_source("https://invalid.example.com")
+        _resolve_path("https://invalid.example.com")
 
 
 # ── _classify_paths ─────────────────────────────────────────
@@ -97,7 +97,7 @@ def test_classify_paths_smart(tmp_path, monkeypatch):
     monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
     f = tmp_path / "test.txt"
     f.write_text("hello")
-    result = _classify_paths([str(f)], exists_texts=False)
+    result = _classify_paths([str(f)])
     assert len(result) == 1
     assert result[0][0] == f
     assert result[0][1] is sys.stdout
@@ -108,7 +108,7 @@ def test_classify_paths_pair(tmp_path, monkeypatch):
     f_in = tmp_path / "in.txt"
     f_out = tmp_path / "out.txt"
     f_in.write_text("hello")
-    result = _classify_paths([f"{f_in}::{f_out}"], exists_texts=False)
+    result = _classify_paths([f"{f_in}::{f_out}"])
     assert len(result) == 1
     assert result[0][0] == f_in
     assert result[0][1] == f_out
@@ -117,7 +117,7 @@ def test_classify_paths_pair(tmp_path, monkeypatch):
 def test_classify_paths_pipe_to_file(tmp_path):
     f_out = tmp_path / "out.txt"
     with patch.object(sys, "stdin", io.StringIO("hello")):
-        result = _classify_paths([f"::{f_out}"], exists_texts=False)
+        result = _classify_paths([f"::{f_out}"])
         assert len(result) == 1
         assert result[0][0] is sys.stdin
         assert result[0][1] == f_out
