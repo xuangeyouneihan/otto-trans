@@ -745,44 +745,32 @@ def _classify_paths(
 _force_utf_8 = False
 
 
-def _set_terminal_encodings() -> tuple[
-    str | None, str | None, str | None, str | None, str | None
-]:
+def _set_terminal_encodings() -> tuple[str | None, str | None, str | None]:
     """设置终端编码为 UTF-8，返回原始编码以便后续恢复。"""
     sys_stdin_encoding = sys.stdin.encoding  # 记录本地输入编码
     sys_stdout_encoding = sys.stdout.encoding  # 记录本地输出编码
-    sys_stdout_errors = sys.stdout.errors  # 记录本地输出错误处理方式
     sys_stderr_encoding = sys.stderr.encoding  # 记录本地提示编码
-    sys_stderr_errors = sys.stderr.errors  # 记录本地提示错误处理方式
     # 更改 std{in,out,err} 编码为 UTF-8，确保中文正常显示
     try:
         sys.stdin.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
-        sys.stderr.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
+        sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
+        sys.stderr.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
     except Exception:
         pass
 
-    return (
-        sys_stdin_encoding,
-        sys_stdout_encoding,
-        sys_stdout_errors,
-        sys_stderr_encoding,
-        sys_stderr_errors,
-    )
+    return sys_stdin_encoding, sys_stdout_encoding, sys_stderr_encoding
 
 
 def _restore_terminal_encodings(
     sys_stdin_encoding: str | None,
     sys_stdout_encoding: str | None,
-    sys_stdout_errors: str | None,
     sys_stderr_encoding: str | None,
-    sys_stderr_errors: str | None,
 ):
     """恢复终端编码为给定的原始值。"""
     try:
         sys.stdin.reconfigure(encoding=sys_stdin_encoding)  # type: ignore[union-attr]
-        sys.stdout.reconfigure(encoding=sys_stdout_encoding, errors=sys_stdout_errors)  # type: ignore[union-attr]
-        sys.stderr.reconfigure(encoding=sys_stderr_encoding, errors=sys_stderr_errors)  # type: ignore[union-attr]
+        sys.stdout.reconfigure(encoding=sys_stdout_encoding)  # type: ignore[union-attr]
+        sys.stderr.reconfigure(encoding=sys_stderr_encoding)  # type: ignore[union-attr]
 
     except Exception:
         pass
@@ -844,17 +832,13 @@ def _reset_config(value: bool):
         (
             sys_stdin_encoding,
             sys_stdout_encoding,
-            sys_stdout_errors,
             sys_stderr_encoding,
-            sys_stderr_errors,
-        ) = None, None, None, None, None
+        ) = None, None, None
         if _force_utf_8:
             (
                 sys_stdin_encoding,
                 sys_stdout_encoding,
-                sys_stdout_errors,
                 sys_stderr_encoding,
-                sys_stderr_errors,
             ) = _set_terminal_encodings()
 
         Settings.reset()
@@ -864,9 +848,7 @@ def _reset_config(value: bool):
             _restore_terminal_encodings(
                 sys_stdin_encoding,
                 sys_stdout_encoding,
-                sys_stdout_errors,
                 sys_stderr_encoding,
-                sys_stderr_errors,
             )
 
         _restore_terminal_errors(error_originals)
@@ -882,17 +864,13 @@ def _reset_cache(value: bool):
         (
             sys_stdin_encoding,
             sys_stdout_encoding,
-            sys_stdout_errors,
             sys_stderr_encoding,
-            sys_stderr_errors,
-        ) = None, None, None, None, None
+        ) = None, None, None
         if _force_utf_8:
             (
                 sys_stdin_encoding,
                 sys_stdout_encoding,
-                sys_stdout_errors,
                 sys_stderr_encoding,
-                sys_stderr_errors,
             ) = _set_terminal_encodings()
 
         Cache.reset()
@@ -902,9 +880,7 @@ def _reset_cache(value: bool):
             _restore_terminal_encodings(
                 sys_stdin_encoding,
                 sys_stdout_encoding,
-                sys_stdout_errors,
                 sys_stderr_encoding,
-                sys_stderr_errors,
             )
 
         _restore_terminal_errors(error_originals)
@@ -920,17 +896,13 @@ def _version(value: bool):
         (
             sys_stdin_encoding,
             sys_stdout_encoding,
-            sys_stdout_errors,
             sys_stderr_encoding,
-            sys_stderr_errors,
-        ) = None, None, None, None, None
+        ) = None, None, None
         if _force_utf_8:
             (
                 sys_stdin_encoding,
                 sys_stdout_encoding,
-                sys_stdout_errors,
                 sys_stderr_encoding,
-                sys_stderr_errors,
             ) = _set_terminal_encodings()
 
         typer.echo(f"♿电棍翻译器 {_pkg_version('otto-trans')}")
@@ -939,9 +911,7 @@ def _version(value: bool):
             _restore_terminal_encodings(
                 sys_stdin_encoding,
                 sys_stdout_encoding,
-                sys_stdout_errors,
                 sys_stderr_encoding,
-                sys_stderr_errors,
             )
 
         _restore_terminal_errors(error_originals)
@@ -1046,21 +1016,13 @@ def main(
     error_originals = _set_terminal_errors()
 
     global _force_utf_8
-    (
-        sys_stdin_encoding,
-        sys_stdout_encoding,
-        sys_stdout_errors,
-        sys_stderr_encoding,
-        sys_stderr_errors,
-    ) = None, None, None, None, None
+    sys_stdin_encoding, sys_stdout_encoding, sys_stderr_encoding = None, None, None
     if _force_utf_8:
         # 将 std{in,out,err} 编码改为 UTF-8
         (
             sys_stdin_encoding,
             sys_stdout_encoding,
-            sys_stdout_errors,
             sys_stderr_encoding,
-            sys_stderr_errors,
         ) = _set_terminal_encodings()
 
     if not Settings.config_path.exists():
@@ -1198,9 +1160,7 @@ def main(
         _restore_terminal_encodings(
             sys_stdin_encoding,
             sys_stdout_encoding,
-            sys_stdout_errors,
             sys_stderr_encoding,
-            sys_stderr_errors,
         )
 
     _restore_terminal_errors(error_originals)
