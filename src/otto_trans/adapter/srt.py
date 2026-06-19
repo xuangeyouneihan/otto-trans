@@ -2,6 +2,7 @@ import re
 from dataclasses import dataclass
 
 from ..utils.format import Format
+from ..utils.text import detect_encoding
 from .base import BaseAdapter, Segment
 
 
@@ -25,7 +26,7 @@ class SRTAdapter(BaseAdapter):
 
     @staticmethod
     def extract(content: bytes) -> list[Segment]:
-        text = content.decode("utf-8-sig", errors="replace")
+        text = content.decode(detect_encoding(content), errors="replace")
         segments: list[Segment] = []
         # 按空行分割 SRT 块
         block_pattern = re.compile(
@@ -53,7 +54,7 @@ class SRTAdapter(BaseAdapter):
 
     @staticmethod
     def reassemble(content: bytes, translated: list[Segment]) -> bytes:
-        text = content.decode("utf-8-sig", errors="replace")
+        text = content.decode(detect_encoding(content), errors="replace")
         trans_texts = [s.text for s in translated]
         # 替换每个字幕块中的文本内容
         i = 0

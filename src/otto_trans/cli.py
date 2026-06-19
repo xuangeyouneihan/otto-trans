@@ -194,7 +194,7 @@ def _build_help_epilog() -> str:
         "",
         "  不提供文本参数时，程序进入逐行输入模式。",
         "",
-        "  多段文本用 \"===\" 行分隔，空行 Ctrl-Z + 回车（Windows）/ Ctrl-D（Linux / macOS）退出。",
+        '  多段文本用 "===" 行分隔，空行 Ctrl-Z + 回车（Windows）/ Ctrl-D（Linux / macOS）退出。',
         "",
         "",
         "",
@@ -244,13 +244,13 @@ def _build_help_epilog() -> str:
 
     # 交互提示根据操作系统动态调整，Windows 上结束提示 Ctrl-Z + 回车，Unix 上提示 Ctrl-D
     interactive_prompt = (
-        "请输入要翻译的文本（多段用只包含 \"===\" 的行分隔，输入 EOF 结束）："
+        '请输入要翻译的文本（多段用只包含 "===" 的行分隔，输入 EOF 结束）：'
     )
     match os.name:
         case "nt":
-            interactive_prompt = "请输入要翻译的文本（多段用只包含 \"===\" 的行分隔，在空行按下 Ctrl-Z + 回车结束）："
+            interactive_prompt = '请输入要翻译的文本（多段用只包含 "===" 的行分隔，在空行按下 Ctrl-Z + 回车结束）：'
         case "posix":
-            interactive_prompt = "请输入要翻译的文本（多段用只包含 \"===\" 的行分隔，在空行按下 Ctrl-D 结束）："
+            interactive_prompt = '请输入要翻译的文本（多段用只包含 "===" 的行分隔，在空行按下 Ctrl-D 结束）：'
 
     interactive_eof = "EOF（Windows：Ctrl-Z + 回车；Linux / macOS：Ctrl-D）"
     match os.name:
@@ -352,13 +352,13 @@ def _process_texts(
             # 交互模式，提示用户输入文本，支持多段输入和分隔符
             if sys.stdin.isatty():
                 prompt = (
-                    "请输入要翻译的文本（多段用只包含 \"===\" 的行分隔，输入 EOF 结束）："
+                    '请输入要翻译的文本（多段用只包含 "===" 的行分隔，输入 EOF 结束）：'
                 )
                 match os.name:
                     case "nt":
-                        prompt = "请输入要翻译的文本（多段用只包含 \"===\" 的行分隔，在空行按下 Ctrl-Z + 回车结束）："
+                        prompt = '请输入要翻译的文本（多段用只包含 "===" 的行分隔，在空行按下 Ctrl-Z + 回车结束）：'
                     case "posix":
-                        prompt = "请输入要翻译的文本（多段用只包含 \"===\" 的行分隔，在空行按下 Ctrl-D 结束）："
+                        prompt = '请输入要翻译的文本（多段用只包含 "===" 的行分隔，在空行按下 Ctrl-D 结束）：'
                 texts = _read_lines(prompt)
             else:
                 # 实际上应该不会走到这里，因为 _classify_paths 已经保证了非交互式 stdin 时 paths 不会空
@@ -742,33 +742,71 @@ def _classify_paths(
 
 # ── CLI ─────────────────────────────────────────────────────
 
+_force_utf_8 = False
 
-def _set_terminal_encodings():
+
+def _set_terminal_encodings() -> tuple[
+    str | None, str | None, str | None, str | None, str | None
+]:
     """设置终端编码为 UTF-8，返回原始编码以便后续恢复。"""
     sys_stdin_encoding = sys.stdin.encoding  # 记录本地输入编码
     sys_stdout_encoding = sys.stdout.encoding  # 记录本地输出编码
+    sys_stdout_errors = sys.stdout.errors  # 记录本地输出错误处理方式
     sys_stderr_encoding = sys.stderr.encoding  # 记录本地提示编码
+    sys_stderr_errors = sys.stderr.errors  # 记录本地提示错误处理方式
     # 更改 std{in,out,err} 编码为 UTF-8，确保中文正常显示
     try:
         sys.stdin.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
-        sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
-        sys.stderr.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
-
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
     except Exception:
         pass
 
-    return sys_stdin_encoding, sys_stdout_encoding, sys_stderr_encoding
+    return (
+        sys_stdin_encoding,
+        sys_stdout_encoding,
+        sys_stdout_errors,
+        sys_stderr_encoding,
+        sys_stderr_errors,
+    )
 
 
 def _restore_terminal_encodings(
-    sys_stdin_encoding, sys_stdout_encoding, sys_stderr_encoding
+    sys_stdin_encoding: str | None,
+    sys_stdout_encoding: str | None,
+    sys_stdout_errors: str | None,
+    sys_stderr_encoding: str | None,
+    sys_stderr_errors: str | None,
 ):
     """恢复终端编码为给定的原始值。"""
     try:
         sys.stdin.reconfigure(encoding=sys_stdin_encoding)  # type: ignore[union-attr]
-        sys.stdout.reconfigure(encoding=sys_stdout_encoding)  # type: ignore[union-attr]
-        sys.stderr.reconfigure(encoding=sys_stderr_encoding)  # type: ignore[union-attr]
+        sys.stdout.reconfigure(encoding=sys_stdout_encoding, errors=sys_stdout_errors)  # type: ignore[union-attr]
+        sys.stderr.reconfigure(encoding=sys_stderr_encoding, errors=sys_stderr_errors)  # type: ignore[union-attr]
 
+    except Exception:
+        pass
+
+
+def _set_terminal_errors() -> dict:
+    """将输出时会崩溃的 errors（strict、surrogateescape）替换为 replace。"""
+    originals: dict = {}
+    try:
+        for name, stream in (("stdout", sys.stdout), ("stderr", sys.stderr)):
+            if (stream.errors or "strict") in ("strict", "surrogateescape"):
+                originals[name] = stream.errors
+                stream.reconfigure(errors="replace")  # type: ignore[union-attr]
+    except Exception:
+        pass
+
+    return originals
+
+
+def _restore_terminal_errors(originals: dict):
+    """恢复终端输出错误处理方式为原值。"""
+    try:
+        for name, orig in originals.items():
+            getattr(sys, name).reconfigure(errors=orig)  # type: ignore[union-attr]
     except Exception:
         pass
 
@@ -792,41 +830,122 @@ class _StickyFooter:
             typer.echo(self.footer, nl=False, err=True)
 
 
-def _reset_config(value: bool):
+def _utf_8(value: bool):
+    global _force_utf_8
     if value:
-        sys_stdin_encoding, sys_stdout_encoding, sys_stderr_encoding = (
-            _set_terminal_encodings()
-        )
+        _force_utf_8 = True
+
+
+def _reset_config(value: bool):
+    global _force_utf_8
+    if value:
+        error_originals = _set_terminal_errors()
+
+        (
+            sys_stdin_encoding,
+            sys_stdout_encoding,
+            sys_stdout_errors,
+            sys_stderr_encoding,
+            sys_stderr_errors,
+        ) = None, None, None, None, None
+        if _force_utf_8:
+            (
+                sys_stdin_encoding,
+                sys_stdout_encoding,
+                sys_stdout_errors,
+                sys_stderr_encoding,
+                sys_stderr_errors,
+            ) = _set_terminal_encodings()
+
         Settings.reset()
         typer.echo(f"已重置位于 {Settings.config_path} 的配置文件", err=True)
-        _restore_terminal_encodings(
-            sys_stdin_encoding, sys_stdout_encoding, sys_stderr_encoding
-        )
+
+        if _force_utf_8:
+            _restore_terminal_encodings(
+                sys_stdin_encoding,
+                sys_stdout_encoding,
+                sys_stdout_errors,
+                sys_stderr_encoding,
+                sys_stderr_errors,
+            )
+
+        _restore_terminal_errors(error_originals)
+
         raise typer.Exit()
 
 
 def _reset_cache(value: bool):
+    global _force_utf_8
     if value:
-        sys_stdin_encoding, sys_stdout_encoding, sys_stderr_encoding = (
-            _set_terminal_encodings()
-        )
+        error_originals = _set_terminal_errors()
+
+        (
+            sys_stdin_encoding,
+            sys_stdout_encoding,
+            sys_stdout_errors,
+            sys_stderr_encoding,
+            sys_stderr_errors,
+        ) = None, None, None, None, None
+        if _force_utf_8:
+            (
+                sys_stdin_encoding,
+                sys_stdout_encoding,
+                sys_stdout_errors,
+                sys_stderr_encoding,
+                sys_stderr_errors,
+            ) = _set_terminal_encodings()
+
         Cache.reset()
         typer.echo(f"已重置位于 {Cache.db_path} 的缓存", err=True)
-        _restore_terminal_encodings(
-            sys_stdin_encoding, sys_stdout_encoding, sys_stderr_encoding
-        )
+
+        if _force_utf_8:
+            _restore_terminal_encodings(
+                sys_stdin_encoding,
+                sys_stdout_encoding,
+                sys_stdout_errors,
+                sys_stderr_encoding,
+                sys_stderr_errors,
+            )
+
+        _restore_terminal_errors(error_originals)
+
         raise typer.Exit()
 
 
-def _version_callback(value: bool):
+def _version(value: bool):
+    global _force_utf_8
     if value:
-        sys_stdin_encoding, sys_stdout_encoding, sys_stderr_encoding = (
-            _set_terminal_encodings()
-        )
+        error_originals = _set_terminal_errors()
+
+        (
+            sys_stdin_encoding,
+            sys_stdout_encoding,
+            sys_stdout_errors,
+            sys_stderr_encoding,
+            sys_stderr_errors,
+        ) = None, None, None, None, None
+        if _force_utf_8:
+            (
+                sys_stdin_encoding,
+                sys_stdout_encoding,
+                sys_stdout_errors,
+                sys_stderr_encoding,
+                sys_stderr_errors,
+            ) = _set_terminal_encodings()
+
         typer.echo(f"♿电棍翻译器 {_pkg_version('otto-trans')}")
-        _restore_terminal_encodings(
-            sys_stdin_encoding, sys_stdout_encoding, sys_stderr_encoding
-        )
+
+        if _force_utf_8:
+            _restore_terminal_encodings(
+                sys_stdin_encoding,
+                sys_stdout_encoding,
+                sys_stdout_errors,
+                sys_stderr_encoding,
+                sys_stderr_errors,
+            )
+
+        _restore_terminal_errors(error_originals)
+
         raise typer.Exit()
 
 
@@ -840,14 +959,14 @@ def main(
         "auto",
         "-s",
         "--source",
-        help="源语言，自带的 3 个翻译引擎支持 ISO 639 语言代码，如 \"zh-Hans\"、\"en\" 等",
+        help='源语言，自带的 3 个翻译引擎支持 ISO 639 语言代码，如 "zh-Hans"、"en" 等',
         show_default=False,
     ),
     tgt_lang: str = typer.Option(
         "",
         "-t",
         "--target",
-        help="目标语言，自带的 3 个翻译引擎支持 ISO 639 语言代码，如 \"zh-Hans\"、\"en\" 等",
+        help='目标语言，自带的 3 个翻译引擎支持 ISO 639 语言代码，如 "zh-Hans"、"en" 等',
         show_default=False,
     ),
     engine: str = typer.Option(
@@ -887,6 +1006,15 @@ def main(
         help="文件翻译并发数，0 为无限制（仅文件模式生效）",
         show_default=False,
     ),
+    utf_8: bool = typer.Option(
+        False,
+        "-u",
+        "--utf-8",
+        help="强制使用 UTF-8 编码",
+        callback=_utf_8,
+        is_eager=True,
+        show_default=False,
+    ),
     reset_config: bool = typer.Option(
         False,
         "--reset-config",
@@ -908,21 +1036,43 @@ def main(
         "-v",
         "--version",
         help="显示版本号",
-        callback=_version_callback,
+        callback=_version,
         is_eager=True,
         show_default=False,
     ),
 ):
     """♿电棍翻译器 — 多引擎命令行翻译工具"""
-    # 将 std{in,out,err} 编码改为 UTF-8
-    sys_stdin_encoding, sys_stdout_encoding, sys_stderr_encoding = (
-        _set_terminal_encodings()
-    )
+    # 防止终端编码不支持输出字符时崩溃
+    error_originals = _set_terminal_errors()
+
+    global _force_utf_8
+    (
+        sys_stdin_encoding,
+        sys_stdout_encoding,
+        sys_stdout_errors,
+        sys_stderr_encoding,
+        sys_stderr_errors,
+    ) = None, None, None, None, None
+    if _force_utf_8:
+        # 将 std{in,out,err} 编码改为 UTF-8
+        (
+            sys_stdin_encoding,
+            sys_stdout_encoding,
+            sys_stdout_errors,
+            sys_stderr_encoding,
+            sys_stderr_errors,
+        ) = _set_terminal_encodings()
 
     if not Settings.config_path.exists():
         Settings.reset()
         typer.echo(f"配置文件已生成在 {Settings.config_path}", err=True)
-    settings = Settings.load()
+
+    settings = None
+    try:
+        settings = Settings.load()
+    except Exception as e:
+        typer.echo(f"配置文件加载失败：{e}", err=True)
+        raise typer.Exit(1)
 
     src_lang = src_lang if src_lang else settings.default_source
 
@@ -934,7 +1084,7 @@ def main(
         )
         raise typer.Exit(1)
 
-    engine = engine.lower() if engine else settings.default_engine
+    engine = engine if engine else settings.default_engine
     if not engine:
         typer.echo(
             "请指定翻译引擎（-e / --engine）或在配置文件中设置默认翻译引擎。",
@@ -1029,20 +1179,31 @@ def main(
     except Exception as e:
         if str(e):
             if fmt:
-                typer.echo(f"翻译失败：{type(e).__name__}: {e}，部分文件可能已写入。", err=True)
+                typer.echo(
+                    f"翻译失败：{type(e).__name__}: {e}，部分文件可能已写入。", err=True
+                )
             else:
                 typer.echo(f"翻译失败：{type(e).__name__}: {e}", err=True)
         else:
             if fmt:
-                typer.echo(f"翻译失败：{type(e).__name__}，部分文件可能已写入。", err=True)
+                typer.echo(
+                    f"翻译失败：{type(e).__name__}，部分文件可能已写入。", err=True
+                )
             else:
                 typer.echo(f"翻译失败：{type(e).__name__}", err=True)
         raise typer.Exit(1)
 
-    # 将 std{in,out,err} 编码改回去
-    _restore_terminal_encodings(
-        sys_stdin_encoding, sys_stdout_encoding, sys_stderr_encoding
-    )
+    if _force_utf_8:
+        # 将 std{in,out,err} 编码改回去
+        _restore_terminal_encodings(
+            sys_stdin_encoding,
+            sys_stdout_encoding,
+            sys_stdout_errors,
+            sys_stderr_encoding,
+            sys_stderr_errors,
+        )
+
+    _restore_terminal_errors(error_originals)
 
 
 if __name__ == "__main__":
