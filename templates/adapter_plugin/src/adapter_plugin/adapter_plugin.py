@@ -14,6 +14,12 @@
 - 难以处理内联标记（HTML 中的 `<b>`、Markdown 中的 `**粗体**` 等），翻译后或者标签可能错位或者可能因为缺失上下文被误翻译
 - 因此 `translate_file` 的路由优先级为：转换器自动发现 → 适配器自动发现，适配器作为最后的兜底方案，除非用户明确指定 `-a` 使用适配器
 
+集中格式
+--------
+- `otto_trans.utils.format` 提供了预定义的格式常量（如 `PLAIN_TEXT`、`HTML`、`JSON`、`SRT` 等），可直接导入使用
+- 如果你的适配器处理的是常见格式，优先引用这些常量而非内联定义 Format 对象
+- 运行 `python -c "from otto_trans.utils.format import all_formats; print(all_formats().keys())"` 可查看当前所有已注册格式
+
 快速开始
 --------
 1. 将本文件、__init__.py、pyproject.toml 中的 `adapter_plugin` 替换为你的插件名
@@ -49,7 +55,9 @@ Segment 结构
 
 Format 类
 ---------
-`Format` 是 dataclass，字段：`name: str`、`description: str`、`extensions: set[str]`、`mime_type: str`。
+- `Format` 是 dataclass，字段：`name: str`、`description: str`、`extensions: set[str]`、`mime_type: str`。
+- 扩展名子集判定：两个 Format 的 extensions 互为子集即视为相等（如 `text({".txt"}) == text({".txt", ".text"})`）。
+- 如果适配器处理的是常见格式，可直接从 `otto_trans.utils.format` 导入对应的格式常量，无需内联定义。
 
 错误处理
 --------

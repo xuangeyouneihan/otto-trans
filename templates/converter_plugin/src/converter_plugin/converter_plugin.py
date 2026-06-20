@@ -15,6 +15,12 @@
 - 依赖引擎原生支持 target 格式，不如适配器灵活
 - 格式转换可能损失细节（如 Markdown → HTML 再转回可能丢失原始空行风格）
 
+集中格式
+--------
+- `otto_trans.utils.format` 提供了预定义的格式常量（如 `PLAIN_TEXT`、`HTML`、`JSON`、`SRT` 等），可直接导入使用
+- 如果你的转换器的 source/target 是常见格式，优先引用这些常量而非内联定义 Format 对象
+- 运行 `python -c "from otto_trans.utils.format import all_formats; print(all_formats().keys())"` 可查看当前所有已注册格式
+
 快速开始
 --------
 1. 将本文件、__init__.py、pyproject.toml 中的 `converter_plugin` 替换为你的插件名
@@ -42,6 +48,7 @@
 - 引擎通过 `supports_format` 判断是否原生支持 target 格式
 - Format 相等采用扩展名子集判定：双方扩展名互为子集即视为一致
 - 转换器名称在 `converters()` 注册表中必须全局唯一
+- source/target 可直接从 `otto_trans.utils.format` 导入预定义格式常量，无需内联定义
 
 Format 类
 ---------

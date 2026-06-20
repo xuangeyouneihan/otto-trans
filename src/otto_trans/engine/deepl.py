@@ -3,7 +3,20 @@ from typing import Any
 
 import httpx
 
-from ..utils.format import Format, UnsupportedFormatError
+from ..utils.format import (
+    HTML,
+    JPEG,
+    MS_EXCEL,
+    MS_POWERPOINT,
+    MS_WORD,
+    PDF,
+    PLAIN_TEXT,
+    PNG,
+    SRT,
+    XLIFF,
+    Format,
+    UnsupportedFormatError,
+)
 from ..utils.text import utf_8
 from .base import BaseTranslator, UnsupportedLanguageError
 
@@ -15,21 +28,21 @@ class DeepLAPIError(Exception):
 
 
 class DeepLTranslator(BaseTranslator):
-    _deepl_text_url = "https://api.deepl.com/v2/translate"
-    _deepl_text_languages_url = (
+    _DEEPL_TEXT_URL = "https://api.deepl.com/v2/translate"
+    _DEEPL_TEXT_LANGUAGES_URL = (
         "https://api.deepl.com/v3/languages?resource=translate_text"
     )
-    _deepl_file_url = "https://api.deepl.com/v2/document"
-    _deepl_file_languages_url = (
+    _DEEPL_FILE_URL = "https://api.deepl.com/v2/document"
+    _DEEPL_FILE_LANGUAGES_URL = (
         "https://api.deepl.com/v3/languages?resource=translate_document"
     )
 
-    _deepl_text_url_free = "https://api-free.deepl.com/v2/translate"
-    _deepl_text_languages_url_free = (
+    _DEEPL_TEXT_URL_FREE = "https://api-free.deepl.com/v2/translate"
+    _DEEPL_TEXT_LANGUAGES_URL_FREE = (
         "https://api-free.deepl.com/v3/languages?resource=translate_text"
     )
-    _deepl_file_url_free = "https://api-free.deepl.com/v2/document"
-    _deepl_file_languages_url_free = (
+    _DEEPL_FILE_URL_FREE = "https://api-free.deepl.com/v2/document"
+    _DEEPL_FILE_LANGUAGES_URL_FREE = (
         "https://api-free.deepl.com/v3/languages?resource=translate_document"
     )
 
@@ -102,66 +115,16 @@ class DeepLTranslator(BaseTranslator):
     }
 
     formats: set[Format] = {
-        Format(
-            name="ms-word",
-            description="Microsoft Word 格式，适用于 .docx 文件内容",
-            extensions={".docx"},
-            mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        ),
-        Format(
-            name="ms-powerpoint",
-            description="Microsoft PowerPoint 格式，适用于 .pptx 文件内容",
-            extensions={".pptx"},
-            mime_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        ),
-        Format(
-            name="ms-excel",
-            description="Microsoft Excel 格式，适用于 .xlsx 文件内容",
-            extensions={".xlsx"},
-            mime_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        ),
-        Format(
-            name="pdf",
-            description="PDF 格式，适用于 .pdf 文件内容",
-            extensions={".pdf"},
-            mime_type="application/pdf",
-        ),
-        Format(
-            name="html",
-            description="HTML 格式，适用于包含 HTML 标签的内容，启用 tag_handling 选项后会使用 v2 版本的标签处理",
-            extensions={".html", ".htm"},
-            mime_type="text/html",
-        ),
-        Format(
-            name="text",
-            description="纯文本格式，适用于一般文本内容",
-            extensions={".txt", ".text"},
-            mime_type="text/plain",
-        ),
-        Format(
-            name="xliff",
-            description="XLIFF 格式，适用于翻译文件内容",
-            extensions={".xlf", ".xliff"},
-            mime_type="application/xliff+xml",
-        ),
-        Format(
-            name="srt",
-            description="SubRip 字幕格式，适用于字幕文件内容",
-            extensions={".srt"},
-            mime_type="application/x-subrip",
-        ),
-        Format(
-            name="jpeg",
-            description="JPEG 图像格式，适用于 .jpg 和 .jpeg 图像内容",
-            extensions={".jpg", ".jpeg", ".jpe"},
-            mime_type="image/jpeg",
-        ),
-        Format(
-            name="png",
-            description="PNG 图像格式，适用于 .png 图像内容",
-            extensions={".png"},
-            mime_type="image/png",
-        ),
+        MS_WORD,
+        MS_POWERPOINT,
+        MS_EXCEL,
+        PDF,
+        HTML,
+        PLAIN_TEXT,
+        XLIFF,
+        SRT,
+        JPEG,
+        PNG,
     }
 
     def __init__(
@@ -241,7 +204,7 @@ class DeepLTranslator(BaseTranslator):
             "Authorization": f"DeepL-Auth-Key {self.__auth_key}",
         }
         response = await self._client.post(
-            self._deepl_text_url if self.paid else self._deepl_text_url_free,
+            self._DEEPL_TEXT_URL if self.paid else self._DEEPL_TEXT_URL_FREE,
             json=payload,
             headers=headers,
         )
@@ -330,7 +293,7 @@ class DeepLTranslator(BaseTranslator):
         }
         file_name = "content" + next(iter(fmt.extensions), "")
         response = await self._client.post(
-            self._deepl_file_url if self.paid else self._deepl_file_url_free,
+            self._DEEPL_FILE_URL if self.paid else self._DEEPL_FILE_URL_FREE,
             data=payload,
             files={"file": (file_name, content, "application/octet-stream")},
             headers=headers,
@@ -378,7 +341,7 @@ class DeepLTranslator(BaseTranslator):
                 "Authorization": f"DeepL-Auth-Key {self.__auth_key}",
             }
             response = await self._client.post(
-                f"{self._deepl_file_url if self.paid else self._deepl_file_url_free}/{document_id}",
+                f"{self._DEEPL_FILE_URL if self.paid else self._DEEPL_FILE_URL_FREE}/{document_id}",
                 data={"document_key": document_key},
                 headers=headers,
             )
@@ -417,7 +380,7 @@ class DeepLTranslator(BaseTranslator):
             "Authorization": f"DeepL-Auth-Key {self.__auth_key}",
         }
         response = await self._client.post(
-            f"{self._deepl_file_url if self.paid else self._deepl_file_url_free}/{document_id}/result",
+            f"{self._DEEPL_FILE_URL if self.paid else self._DEEPL_FILE_URL_FREE}/{document_id}/result",
             data={"document_key": document_key},
             headers=headers,
         )
@@ -456,14 +419,14 @@ class DeepLTranslator(BaseTranslator):
         endpoint = ""
         if fmt:
             if self.paid:
-                endpoint = self._deepl_file_languages_url
+                endpoint = self._DEEPL_FILE_LANGUAGES_URL
             else:
-                endpoint = self._deepl_file_languages_url_free
+                endpoint = self._DEEPL_FILE_LANGUAGES_URL_FREE
         else:
             if self.paid:
-                endpoint = self._deepl_text_languages_url
+                endpoint = self._DEEPL_TEXT_LANGUAGES_URL
             else:
-                endpoint = self._deepl_text_languages_url_free
+                endpoint = self._DEEPL_TEXT_LANGUAGES_URL_FREE
         response = await self._client.get(
             endpoint,
             headers=headers,

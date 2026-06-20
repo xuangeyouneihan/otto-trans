@@ -15,6 +15,12 @@
 - `formats: set[Format]`：引擎原生支持的格式。默认 `supports_format` 基于此集合匹配，声明后引擎可直接处理这些格式而无需转换器/适配器
 - `options: dict`：引擎所需的配置选项，需要名称、类型、描述、是否必需、适用模式等信息，CLI 会据此生成帮助信息并校验用户输入
 
+集中格式
+--------
+- `otto_trans.utils.format` 提供了预定义的格式常量（如 `PLAIN_TEXT`、`HTML`、`JSON`、`SRT` 等），可直接导入使用
+- 如果你的引擎支持的是常见格式，优先引用这些常量而非内联定义 Format 对象
+- 运行 `python -c "from otto_trans.utils.format import all_formats; print(all_formats().keys())"` 可查看当前所有已注册格式
+
 必需实现
 --------
 - `translate_texts(texts, src_lang, tgt_lang) -> list[str]`：同步方法，输入输出列表一一对应
@@ -44,12 +50,13 @@ Format 类
 ---------
 - `Format` 是 dataclass，字段：`name: str`、`description: str`、`extensions: set[str]`、`mime_type: str`。
 - 扩展名子集判定：两个 Format 的 extensions 互为子集即视为相等（如 `text({".txt"}) == text({".txt", ".text"})`）。
+- 引擎支持的格式可直接从 `otto_trans.utils.format` 导入预定义常量，无需内联定义。
 """
 
 import httpx
 
 from otto_trans.engine.base import BaseTranslator, UnsupportedLanguageError
-from otto_trans.utils.format import Format, UnsupportedFormatError
+from otto_trans.utils.format import MARKDOWN, PLAIN_TEXT, Format, UnsupportedFormatError
 
 
 class EnginePluginError(Exception):
@@ -77,19 +84,9 @@ class EnginePlugin(BaseTranslator):
     }
 
     formats: set[Format] = {
-        # 定义翻译引擎原生支持的格式（可选）
-        Format(
-            name="text",
-            description="纯文本格式",
-            extensions={".txt", ".text"},
-            mime_type="text/plain",
-        ),
-        Format(
-            name="markdown",
-            description="Markdown 格式",
-            extensions={".md", ".mdown", ".markdown"},
-            mime_type="text/markdown",
-        ),
+        # 定义翻译引擎原生支持的格式（可选），可直接从 otto_trans.utils.format 导入常用格式
+        PLAIN_TEXT,
+        MARKDOWN,
     }
 
     def __init__(self, api_key: str, config_name: str | None = None, **kwargs):

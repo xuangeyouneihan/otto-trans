@@ -5,7 +5,17 @@ from typing import Any
 
 import httpx
 
-from ..utils.format import Format, UnsupportedFormatError
+from ..utils.format import (
+    JSON,
+    LATEX,
+    PLAIN_TEXT,
+    SRT,
+    TYPST,
+    XML,
+    YAML,
+    Format,
+    UnsupportedFormatError,
+)
 from ..utils.html import fix_html
 from ..utils.text import detect_encoding
 from .base import BaseTranslator, UnsupportedLanguageError
@@ -15,6 +25,10 @@ class OpenAIAPIError(Exception):
     """OpenAI API 调用异常"""
 
     pass
+
+
+# 纯文本但 MIME 不是 text/* 的格式，OpenAI 都可以翻译
+_TEXT_FORMATS: frozenset[Format] = frozenset({JSON, XML, YAML, LATEX, TYPST, SRT})
 
 
 def _is_html(content: bytes, fmt: Format) -> bool:
@@ -31,7 +45,7 @@ def _is_html(content: bytes, fmt: Format) -> bool:
 
 
 class OpenAITranslator(BaseTranslator):
-    _default_prompt_template = (
+    _DEFAULT_PROMPT_TEMPLATE = (
         "你是一个专业的翻译助手。将以下文本从 {src_lang} 翻译成 {tgt_lang}。"
         "对于单个词汇，直接给出最常用的翻译，不要列举多种释义。"
         "只返回翻译后的文本，不要有解释、备注或引号。"
@@ -261,7 +275,7 @@ class OpenAITranslator(BaseTranslator):
         self.__api_key = api_key
         self.model = model
         self.prompt_template = (
-            prompt_template if prompt_template else self._default_prompt_template
+            prompt_template if prompt_template else self._DEFAULT_PROMPT_TEMPLATE
         )
         self.thinking = thinking
         if reasoning_effort is not None and reasoning_effort not in [
@@ -313,11 +327,22 @@ class OpenAITranslator(BaseTranslator):
         result = super().supports_format(fmt)
         if result:
             return result
-        # Format 对象：mime_type 以 text/ 开头则直接接受
-        if isinstance(fmt, Format) and fmt.mime_type.startswith("text/"):
-            return fmt
-        # 字符串：MIME 类型直接判断，否则用 mimetypes 推断
+        if fmt == PLAIN_TEXT:
+            return PLAIN_TEXT
+        # Format 对象：白名单或 mime_type 以 text/ 开头
+        if isinstance(fmt, Format):
+            if fmt.mime_type.startswith("text/") or any(
+                fmt == tf for tf in _TEXT_FORMATS
+            ):
+                return fmt
+            return None
+        # 字符串：白名单名称 → 直接返回对应 Format
         if isinstance(fmt, str):
+            for tf in _TEXT_FORMATS:
+                if tf == fmt:  # Format.__eq__ 支持 str
+                    return tf
+            if fmt == PLAIN_TEXT:
+                return PLAIN_TEXT
             if "/" in fmt:
                 # MIME 类型格式：text/html → name="html", extensions={".html"}
                 if fmt.startswith("text/"):

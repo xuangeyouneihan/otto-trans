@@ -5,7 +5,8 @@ from typing import Callable, cast
 from ..adapter.base import BaseAdapter, Segment
 from ..converter.base import BaseConverter
 from ..engine.base import BaseTranslator
-from ..utils.format import Format, UnsupportedFormatError
+from ..utils.format import PLAIN_TEXT, Format, UnsupportedFormatError
+from ..utils.text import detect_encoding
 from .cache import Cache
 
 
@@ -418,12 +419,18 @@ class Translator:
                         content, src_lang, tgt_lang, adp_cls
                     )
                     return result, adp_cls.source
-                # 2d. 彻底无法处理
+                if fmt == PLAIN_TEXT:
+                    # 2d. 纯文本走文本翻译
+                    result = self.translate_texts(
+                        [content.decode(detect_encoding(content))], src_lang, tgt_lang
+                    )[0].encode("utf-8-sig")
+                    return result, PLAIN_TEXT
+                # 2e. 彻底无法处理
                 raise UnsupportedFormatError.for_engine(
                     self.engine.name, fmt, self.engine.formats
                 )
 
-            # 2e. 转换 → 翻译 → 反向转换
+            # 2f. 转换 → 翻译 → 反向转换
             converted_content = in_conv_cls.convert(content)
             translated_content, translated_format = await self.engine.translate_file(
                 converted_content, src_lang, tgt_lang, in_conv_cls.target

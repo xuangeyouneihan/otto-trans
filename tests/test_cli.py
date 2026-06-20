@@ -97,7 +97,7 @@ def test_classify_paths_smart(tmp_path, monkeypatch):
     monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
     f = tmp_path / "test.txt"
     f.write_text("hello")
-    result = _classify_paths([str(f)])
+    result = _classify_paths([str(f)], [])
     assert len(result) == 1
     assert result[0][0] == f
     assert result[0][1] is sys.stdout
@@ -108,16 +108,20 @@ def test_classify_paths_pair(tmp_path, monkeypatch):
     f_in = tmp_path / "in.txt"
     f_out = tmp_path / "out.txt"
     f_in.write_text("hello")
-    result = _classify_paths([f"{f_in}::{f_out}"])
-    assert len(result) == 1
+    result = _classify_paths([f"{f_in}::{f_out}"], [])
+    # 显式路径对 + 空 texts：texts 作为管道等效输入也会产生一对 (空列表→stdout)
+    # 空输入对会在 _process_files 中被过滤，不影响实际行为
+    assert len(result) == 2
     assert result[0][0] == f_in
     assert result[0][1] == f_out
+    assert result[1][0] == []
+    assert result[1][1] is sys.stdout
 
 
 def test_classify_paths_pipe_to_file(tmp_path):
     f_out = tmp_path / "out.txt"
     with patch.object(sys, "stdin", io.StringIO("hello")):
-        result = _classify_paths([f"::{f_out}"])
+        result = _classify_paths([f"::{f_out}"], [])
         assert len(result) == 1
         assert result[0][0] is sys.stdin
         assert result[0][1] == f_out

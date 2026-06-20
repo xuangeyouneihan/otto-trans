@@ -7,7 +7,20 @@ import uuid
 
 import httpx
 
-from ..utils.format import Format, UnsupportedFormatError
+from ..utils.format import (
+    BMP,
+    HTML,
+    JPEG,
+    MS_EXCEL,
+    MS_POWERPOINT,
+    MS_POWERPOINT_LEGACY,
+    MS_WORD,
+    MS_WORD_LEGACY,
+    PDF,
+    PNG,
+    Format,
+    UnsupportedFormatError,
+)
 from ..utils.html import fix_html
 from ..utils.text import detect_encoding, utf_8
 from .base import BaseTranslator, UnsupportedLanguageError
@@ -22,10 +35,10 @@ class YoudaoAPIError(Exception):
 class YoudaoTranslator(BaseTranslator):
     # ── API 端点 ─────────────────────────────────────────────
 
-    _youdao_text_url = "https://openapi.youdao.com/v2/api"
-    _youdao_file_url = "https://openapi.youdao.com/file_trans"
-    _youdao_web_url = "https://openapi.youdao.com/translate_html"
-    _youdao_detect_url = "https://openapi.youdao.com/v1/detect"
+    _YOUDAO_TEXT_URL = "https://openapi.youdao.com/v2/api"
+    _YOUDAO_FILE_URL = "https://openapi.youdao.com/file_trans"
+    _YOUDAO_WEB_URL = "https://openapi.youdao.com/translate_html"
+    _YOUDAO_DETECT_URL = "https://openapi.youdao.com/v1/detect"
 
     # ── 引擎标识 ─────────────────────────────────────────────
 
@@ -301,66 +314,16 @@ class YoudaoTranslator(BaseTranslator):
     }
 
     formats: set[Format] = {
-        Format(
-            name="ms-word",
-            description="Microsoft Word 格式，适用于 .docx 文件",
-            extensions={".docx"},
-            mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        ),
-        Format(
-            name="ms-word-legacy",
-            description="Microsoft Word 97-2003 格式，适用于 .doc 文件",
-            extensions={".doc"},
-            mime_type="application/msword",
-        ),
-        Format(
-            name="pdf",
-            description="PDF 格式",
-            extensions={".pdf"},
-            mime_type="application/pdf",
-        ),
-        Format(
-            name="ms-powerpoint-legacy",
-            description="Microsoft PowerPoint 97-2003 格式，适用于 .ppt 文件",
-            extensions={".ppt"},
-            mime_type="application/vnd.ms-powerpoint",
-        ),
-        Format(
-            name="ms-powerpoint",
-            description="Microsoft PowerPoint 格式，适用于 .pptx 文件",
-            extensions={".pptx"},
-            mime_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        ),
-        Format(
-            name="ms-excel",
-            description="Microsoft Excel 格式，适用于 .xlsx 文件",
-            extensions={".xlsx"},
-            mime_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        ),
-        Format(
-            name="jpeg",
-            description="JPEG 图像格式",
-            extensions={".jpg", ".jpe", ".jpeg"},
-            mime_type="image/jpeg",
-        ),
-        Format(
-            name="png",
-            description="PNG 图像格式",
-            extensions={".png"},
-            mime_type="image/png",
-        ),
-        Format(
-            name="bmp",
-            description="BMP 位图格式",
-            extensions={".bmp"},
-            mime_type="image/bmp",
-        ),
-        Format(
-            name="html",
-            description="HTML 网页格式，自动识别标签仅翻译文本内容",
-            extensions={".html", ".htm"},
-            mime_type="text/html",
-        ),
+        MS_WORD,
+        MS_WORD_LEGACY,
+        PDF,
+        MS_POWERPOINT_LEGACY,
+        MS_POWERPOINT,
+        MS_EXCEL,
+        JPEG,
+        PNG,
+        BMP,
+        HTML,
     }
 
     # ── 生命周期 ─────────────────────────────────────────────
@@ -465,7 +428,7 @@ class YoudaoTranslator(BaseTranslator):
         }
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
         return await self._client.post(
-            self._youdao_text_url, data=payload, headers=headers
+            self._YOUDAO_TEXT_URL, data=payload, headers=headers
         )
 
     # ── 网页翻译 ─────────────────────────────────────────────
@@ -488,7 +451,7 @@ class YoudaoTranslator(BaseTranslator):
             "sign": sign,
         }
         resp = await self._client.post(
-            self._youdao_detect_url,
+            self._YOUDAO_DETECT_URL,
             data=payload,
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
@@ -548,7 +511,7 @@ class YoudaoTranslator(BaseTranslator):
             "signType": "v3",
         }
         resp = await self._client.post(
-            self._youdao_web_url,
+            self._YOUDAO_WEB_URL,
             data=payload,
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
@@ -673,7 +636,7 @@ class YoudaoTranslator(BaseTranslator):
             "signType": "v3",
         }
         resp = await self._client.post(
-            self._youdao_file_url + "/upload",
+            self._YOUDAO_FILE_URL + "/upload",
             data=payload,
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
@@ -701,7 +664,7 @@ class YoudaoTranslator(BaseTranslator):
                 "signType": "v3",
             }
             resp = await self._client.post(
-                self._youdao_file_url + "/query",
+                self._YOUDAO_FILE_URL + "/query",
                 data=payload,
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
             )
@@ -754,7 +717,7 @@ class YoudaoTranslator(BaseTranslator):
             "signType": "v3",
         }
         resp = await self._client.post(
-            self._youdao_file_url + "/download",
+            self._YOUDAO_FILE_URL + "/download",
             data=payload,
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
