@@ -375,7 +375,7 @@ def _process_texts(
         # Stdin，直接读取文本内容
         content = path_pair[0].read()
     if not content.strip():
-        typer.echo("未读取到任何文本内容，退出。", err=True)
+        typer.echo("未读取到任何文本内容，退出", err=True)
         raise typer.Exit(1)
     # 统一换行符为 \n，翻译后再写回时根据目标平台调整为对应的换行符
     content = content.replace("\r\n", "\n").replace("\r", "\n")
@@ -495,7 +495,7 @@ def _process_files(
     paths = new_paths
 
     if not paths:
-        typer.echo("未提供任何文件路径或通过管道输入内容，退出。", err=True)
+        typer.echo("未提供任何文件路径或通过管道输入内容，退出", err=True)
         raise typer.Exit(1)
 
     sem = asyncio.Semaphore(jobs) if jobs > 0 else None
@@ -557,7 +557,10 @@ def _resolve_path(source: str) -> Path | str:
             resp = httpx.head(s, follow_redirects=True, timeout=10.0)
             resp.raise_for_status()
         except httpx.HTTPError as e:
-            raise ValueError(f"无法访问 URL: {s} ({e})") from e
+            if str(e):
+                raise ValueError(f"无法访问 URL: {s} ({e})") from e
+            else:
+                raise ValueError(f"无法访问 URL: {s}") from e
         accept_ranges = resp.headers.get("accept-ranges", "").lower()
         if "bytes" not in accept_ranges:
             # 警告但不阻止（部分服务器不支持 Range 请求但仍可 GET）
@@ -588,7 +591,10 @@ def _ensure_readable(source: Path | str) -> bool:
         if not os.access(source, os.R_OK):
             raise PermissionError(f"无读取权限：{source}")
     except (FileNotFoundError, IsADirectoryError, PermissionError) as e:
-        typer.echo(f"无法读取：{e}", err=True)
+        if str(e):
+            typer.echo(f"无法读取 {source}：{type(e).__name__}: {e}", err=True)
+        else:
+            typer.echo(f"无法读取 {source}：{type(e).__name__}", err=True)
         result = False
     return result
 
@@ -601,7 +607,10 @@ def _ensure_writable(path: Path) -> bool:
         path.touch()
         path.unlink()
     except (OSError, PermissionError) as e:
-        typer.echo(f"无法写入 {path}：{e}", err=True)
+        if str(e):
+            typer.echo(f"无法写入 {path}：{type(e).__name__}: {e}", err=True)
+        else:
+            typer.echo(f"无法写入 {path}：{type(e).__name__}", err=True)
         # 清理本次新建的上级目录，避免残留空目录
         for parent in new_parents:
             shutil.rmtree(parent, ignore_errors=True)
@@ -618,7 +627,10 @@ def _parse_input(p: str) -> Path | str | None:
     try:
         return _resolve_path(p)
     except Exception as e:
-        typer.echo(f"路径参数格式错误：{p}，{e}", err=True)
+        if str(e):
+            typer.echo(f"路径参数格式错误：{p}，{e}", err=True)
+        else:
+            typer.echo(f"路径参数格式错误：{p}", err=True)
         return None
 
 
@@ -627,7 +639,10 @@ def _parse_output(p: str) -> Path | None:
     try:
         result = _resolve_path(p)
     except Exception as e:
-        typer.echo(f"路径参数格式错误：{p}，{e}", err=True)
+        if str(e):
+            typer.echo(f"路径参数格式错误：{p}，{e}", err=True)
+        else:
+            typer.echo(f"路径参数格式错误：{p}", err=True)
         return None
     if not isinstance(result, Path):
         typer.echo(f"路径参数格式错误：{p}，输出路径不能是 URL", err=True)
@@ -1037,7 +1052,10 @@ def main(
     try:
         settings = Settings.load()
     except Exception as e:
-        typer.echo(f"配置文件加载失败：{e}", err=True)
+        if str(e):
+            typer.echo(f"配置文件加载失败：{type(e).__name__}: {e}", err=True)
+        else:
+            typer.echo(f"配置文件加载失败：{type(e).__name__}", err=True)
         raise typer.Exit(1)
 
     src_lang = src_lang if src_lang else settings.default_source
@@ -1045,7 +1063,7 @@ def main(
     tgt_lang = tgt_lang if tgt_lang else settings.default_target
     if not tgt_lang:
         typer.echo(
-            "请指定目标语言（-t / --target）或在配置文件中设置默认目标语言。",
+            "请指定目标语言（-t / --target）或在配置文件中设置默认目标语言",
             err=True,
         )
         raise typer.Exit(1)
@@ -1053,7 +1071,7 @@ def main(
     engine = engine if engine else settings.default_engine
     if not engine:
         typer.echo(
-            "请指定翻译引擎（-e / --engine）或在配置文件中设置默认翻译引擎。",
+            "请指定翻译引擎（-e / --engine）或在配置文件中设置默认翻译引擎",
             err=True,
         )
         raise typer.Exit(1)
@@ -1064,13 +1082,13 @@ def main(
 
     if not fmt and (converter or adapter):
         typer.echo(
-            "格式转换器和适配器需要指定输入文件格式（-f / --format），且该格式不能是纯文本格式。",
+            "格式转换器和适配器需要指定输入文件格式（-f / --format），且该格式不能是纯文本格式",
             err=True,
         )
         raise typer.Exit(1)
 
     if converter and adapter:
-        typer.echo("格式转换器和适配器不能同时使用，请选择一种方式。", err=True)
+        typer.echo("格式转换器和适配器不能同时使用，请选择一种方式", err=True)
         raise typer.Exit(1)
 
     cli_paths = _classify_paths(paths, texts)
@@ -1082,22 +1100,22 @@ def main(
     if texts:
         if not sys.stdin.isatty():
             typer.echo(
-                "通过管道输入内容时不能使用文本参数，请直接通过管道输入或使用路径参数。",
+                "通过管道输入内容时不能使用文本参数，请直接通过管道输入或使用路径参数",
                 err=True,
             )
             raise typer.Exit(1)
         if paths or fmt:
             typer.echo(
-                "文本参数会当成输入文件处理，请确认指定的格式是文本格式且文本内容正确。",
+                "文本参数会当成输入文件处理，请确认指定的格式是文本格式且文本内容正确",
                 err=True,
             )
 
     if jobs < 0:
-        typer.echo("并发数（-j / --jobs）不能为负数。", err=True)
+        typer.echo("并发数（-j / --jobs）不能为负数", err=True)
         raise typer.Exit(1)
 
     if jobs > 0 and not fmt:
-        typer.echo("并发参数（-j / --jobs）仅在文件模式下生效。", err=True)
+        typer.echo("并发参数（-j / --jobs）仅在文件模式下生效", err=True)
 
     cli_opts = {k: v for k, v in (opt.split("=", 1) for opt in options)}
 
@@ -1121,7 +1139,10 @@ def main(
     try:
         translator = Translator(engine, engine_opts, on_warning=sticky_footer)
     except (ValueError, TypeError) as e:
-        typer.echo(f"配置错误：{e}", err=True)
+        if str(e):
+            typer.echo(f"配置错误：{type(e).__name__}: {e}", err=True)
+        else:
+            typer.echo(f"配置错误：{type(e).__name__}", err=True)
         raise typer.Exit(1)
 
     try:
@@ -1152,26 +1173,26 @@ def main(
         if fmt:
             typer.echo("", err=True)
         if paths:
-            typer.echo("翻译已中断，部分文件可能已写入。", err=True)
+            typer.echo("翻译已中断，部分文件可能已写入", err=True)
         raise
     except KeyboardInterrupt:
         if fmt:
             typer.echo("", err=True)
         if paths:
-            typer.echo("翻译已中断，部分文件可能已写入。", err=True)
+            typer.echo("翻译已中断，部分文件可能已写入", err=True)
         raise typer.Exit(1)
     except Exception as e:
         if str(e):
             if fmt:
                 typer.echo(
-                    f"翻译失败：{type(e).__name__}: {e}，部分文件可能已写入。", err=True
+                    f"翻译失败：{type(e).__name__}: {e}，部分文件可能已写入", err=True
                 )
             else:
                 typer.echo(f"翻译失败：{type(e).__name__}: {e}", err=True)
         else:
             if fmt:
                 typer.echo(
-                    f"翻译失败：{type(e).__name__}，部分文件可能已写入。", err=True
+                    f"翻译失败：{type(e).__name__}，部分文件可能已写入", err=True
                 )
             else:
                 typer.echo(f"翻译失败：{type(e).__name__}", err=True)
