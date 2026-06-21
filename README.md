@@ -256,9 +256,9 @@ my_engine = "my_package:MyEngine"
 
 ```
 otto-trans/
-├── cli.py                  Typer CLI 入口
+├── cli.py                   Typer CLI 入口
 ├── config/
-│   └── settings.py         配置管理（Pydantic + YAML，动态生成默认配置）
+│   └── settings.py          配置管理（Pydantic + YAML，动态生成默认配置）
 ├── adapter/
 │   ├── base.py              适配器抽象基类（Segment 数据类）
 │   └── srt.py               SRT 字幕适配器

@@ -2,7 +2,7 @@
 name = "adapter-plugin"
 description = "otto-trans 的格式适配器插件模板。"
 dependencies = [
-    "otto-trans>=1.0.0",
+    "otto-trans>=1.3.0",
 ]
 
 # 向 otto-trans 注册格式适配器插件。
