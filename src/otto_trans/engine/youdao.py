@@ -374,7 +374,7 @@ class YoudaoTranslator(BaseTranslator):
         src_code = self._TEXT_LANG_MAP.get(src_lang.lower())
         tgt_code = self._TEXT_LANG_MAP.get(tgt_lang.lower())
         if src_code is None or tgt_code is None or tgt_code == "auto":
-            raise UnsupportedLanguageError.for_engine(
+            raise UnsupportedLanguageError(
                 f"{self.friendly_name}（{self.name}）",
                 src_lang,
                 tgt_lang,
@@ -480,7 +480,7 @@ class YoudaoTranslator(BaseTranslator):
         src_code = self._WEB_LANG_MAP.get(src_lang.lower())
         tgt_code = self._WEB_LANG_MAP.get(tgt_lang.lower())
         if src_code is None or tgt_code is None:
-            raise UnsupportedLanguageError.for_engine(
+            raise UnsupportedLanguageError(
                 f"{self.friendly_name} 网页翻译",
                 src_lang,
                 tgt_lang,
@@ -489,7 +489,7 @@ class YoudaoTranslator(BaseTranslator):
                 blocked_pairs=self._WEB_BLOCKED_PAIRS,
             )
         if (src_code, tgt_code) in self._WEB_BLOCKED_PAIRS:
-            raise UnsupportedLanguageError.for_engine(
+            raise UnsupportedLanguageError(
                 f"{self.friendly_name} 网页翻译",
                 src_lang,
                 tgt_lang,
@@ -535,7 +535,7 @@ class YoudaoTranslator(BaseTranslator):
         src_code = self._DOC_LANG_MAP.get(src_lang.lower())
         tgt_code = self._DOC_LANG_MAP.get(tgt_lang.lower())
         if src_code is None or tgt_code is None:
-            raise UnsupportedLanguageError.for_engine(
+            raise UnsupportedLanguageError(
                 f"{self.friendly_name} 文档翻译",
                 src_lang,
                 tgt_lang,
@@ -546,7 +546,7 @@ class YoudaoTranslator(BaseTranslator):
         # auto 源语言匹配所有已注册的目标语言
         if src_code == "auto":
             if tgt_code == "auto":
-                raise UnsupportedLanguageError.for_engine(
+                raise UnsupportedLanguageError(
                     f"{self.friendly_name} 文档翻译",
                     src_lang,
                     tgt_lang,
@@ -555,7 +555,7 @@ class YoudaoTranslator(BaseTranslator):
                     supported_pairs=self._DOC_PAIRS,
                 )
             if not any(tgt_code == t for _, t in self._DOC_PAIRS):
-                raise UnsupportedLanguageError.for_engine(
+                raise UnsupportedLanguageError(
                     f"{self.friendly_name} 文档翻译",
                     src_lang,
                     tgt_lang,
@@ -565,7 +565,7 @@ class YoudaoTranslator(BaseTranslator):
                 )
         else:
             if (src_code, tgt_code) not in self._DOC_PAIRS:
-                raise UnsupportedLanguageError.for_engine(
+                raise UnsupportedLanguageError(
                     f"{self.friendly_name} 文档翻译",
                     src_lang,
                     tgt_lang,
@@ -588,13 +588,21 @@ class YoudaoTranslator(BaseTranslator):
     def _resolve_file_type(self, fmt: Format) -> str:
         if fmt.name in self._FILE_TYPE_MAP:
             return self._FILE_TYPE_MAP[fmt.name]
-        raise UnsupportedFormatError.for_engine(self.name, fmt, self.formats)
+        raise UnsupportedFormatError(self.name, fmt, self.formats)
+
+    def _format_by_mime(self, mime: str) -> Format | None:
+        """根据 MIME 类型从 formats 中匹配 Format（去掉 ; 参数后匹配）。"""
+        mime = mime.split(";", 1)[0].strip()
+        for f in self.formats:
+            if f.mime_type == mime:
+                return f
+        return None
 
     async def translate_file(
         self, content: bytes, src_lang: str, tgt_lang: str, fmt: Format
     ) -> tuple[bytes, Format]:
         if not self.supports_format(fmt):
-            raise UnsupportedFormatError.for_engine(self.name, fmt)
+            raise UnsupportedFormatError(self.name, fmt)
 
         if fmt.name == "html":
             translated = await self._translate_web(content, src_lang, tgt_lang)

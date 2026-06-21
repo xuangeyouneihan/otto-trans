@@ -289,14 +289,22 @@ BMP = _register(
 
 
 class UnsupportedFormatError(ValueError):
-    @classmethod
-    def for_engine(
-        cls, engine_name: str, fmt: Format | str, formats: set[Format] | None = None
-    ) -> "UnsupportedFormatError":
-        texts = f"翻译引擎 {engine_name} 不支持格式：{fmt.name if isinstance(fmt, Format) else fmt}。"
-        if formats:
-            texts += "\n\n支持的格式包括："
-            for f in formats:
-                exts = ", ".join(sorted(f.extensions)) if f.extensions else None
-                texts += f"\n- {f.name}: {exts}" if exts else f"\n- {f.name}"
-        return cls(texts)
+    def __init__(
+        self,
+        engine_name: str = "",
+        fmt: Format | str = "",
+        formats: set[Format] | None = None,
+    ):
+        if not fmt:
+            if not engine_name:
+                super().__init__()
+            else:
+                super().__init__(engine_name)
+        else:
+            texts = f"翻译引擎 {engine_name} 不支持格式：{fmt.name if isinstance(fmt, Format) else fmt}。"
+            if formats:
+                texts += "\n\n支持的格式包括："
+                for f in formats:
+                    exts = ", ".join(sorted(f.extensions)) if f.extensions else None
+                    texts += f"\n- {f.name}: {exts}" if exts else f"\n- {f.name}"
+            super().__init__(texts)

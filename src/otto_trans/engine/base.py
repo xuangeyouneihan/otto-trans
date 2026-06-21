@@ -7,30 +7,34 @@ from ..utils.format import Format
 class UnsupportedLanguageError(ValueError):
     """引擎不支持的语言代码"""
 
-    @classmethod
-    def for_engine(
-        cls,
-        engine_name: str,
-        src_code: str,
-        tgt_code: str,
+    def __init__(
+        self,
+        engine_name: str = "",
+        src_code: str = "",
+        tgt_code: str = "",
         src_available: set[str] | None = None,
         tgt_available: set[str] | None = None,
-        *,
         supported_pairs: set[tuple[str, str]] | None = None,
         blocked_pairs: set[tuple[str, str]] | None = None,
-    ) -> "UnsupportedLanguageError":
-        text = f"当前翻译引擎 {engine_name} 不支持指定的语言 '{src_code}' -> '{tgt_code}'。"
-        if src_available:
-            text += f"\n\n可用的源语言如下：{', '.join(sorted(src_available))}"
-        if tgt_available:
-            text += f"\n\n可用的目标语言如下：{', '.join(sorted(tgt_available))}"
-        if supported_pairs:
-            pairs = ", ".join(f"{s}→{t}" for s, t in sorted(supported_pairs))
-            text += f"\n\n支持的翻译方向：{pairs}"
-        if blocked_pairs:
-            pairs = ", ".join(f"{s}→{t}" for s, t in sorted(blocked_pairs))
-            text += f"\n\n不支持的翻译方向：{pairs}"
-        return cls(text)
+    ):
+        if not src_code:
+            if not engine_name:
+                super().__init__()
+            else:
+                super().__init__(engine_name)
+        else:
+            text = f"当前翻译引擎 {engine_name} 不支持指定的语言 '{src_code}' -> '{tgt_code}'。"
+            if src_available:
+                text += f"\n\n可用的源语言如下：\n{', '.join(sorted(src_available))}"
+            if tgt_available:
+                text += f"\n\n可用的目标语言如下：\n{', '.join(sorted(tgt_available))}"
+            if supported_pairs:
+                pairs = ", ".join(f"{s}→{t}" for s, t in sorted(supported_pairs))
+                text += f"\n\n支持的翻译方向：\n{pairs}"
+            if blocked_pairs:
+                pairs = ", ".join(f"{s}→{t}" for s, t in sorted(blocked_pairs))
+                text += f"\n\n不支持的翻译方向：\n{pairs}"
+            super().__init__(text)
 
 
 class BaseTranslator(ABC):
@@ -137,14 +141,6 @@ class BaseTranslator(ABC):
         raise NotImplementedError(
             f"{self.friendly_name + '（' + self.engine_name + '）' if self.friendly_name else self.engine_name} 不支持文件翻译"
         )
-
-    def _format_by_mime(self, mime: str) -> Format | None:
-        """根据 MIME 类型从 formats 中匹配 Format（去掉 ; 参数后匹配）。"""
-        mime = mime.split(";", 1)[0].strip()
-        for f in self.formats:
-            if f.mime_type == mime:
-                return f
-        return None
 
     def supports_format(self, fmt: Format | str) -> Format | None:
         """检查引擎是否支持该格式，支持则返回对应的 Format 对象，否则返回 None。

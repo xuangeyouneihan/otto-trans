@@ -360,7 +360,7 @@ class OpenAITranslator(BaseTranslator):
         self, texts: list[str], src_lang: str, tgt_lang: str
     ) -> list[str]:
         if tgt_lang.lower() == "auto":
-            raise UnsupportedLanguageError.for_engine(
+            raise UnsupportedLanguageError(
                 f"{self.friendly_name}（{self.name}）", src_lang, tgt_lang
             )
 
@@ -375,7 +375,7 @@ class OpenAITranslator(BaseTranslator):
         self, content: bytes, src_lang: str, tgt_lang: str, fmt: Format
     ) -> tuple[bytes, Format]:
         if not self.supports_format(fmt):
-            raise UnsupportedFormatError.for_engine(self.name, fmt)
+            raise UnsupportedFormatError(self.name, fmt)
 
         text = content.decode(detect_encoding(content), errors="replace")
         result = await self._translate_text(text, src_lang, tgt_lang)

@@ -396,7 +396,7 @@ class Translator:
                 # 1c. 引擎不支持该格式 → converter 视为输入转换器
                 in_converter = converter.strip() or None
 
-        # ── 3. 原生格式：直接翻译，可选输出转换 ──
+        # ── 2. 原生格式：直接翻译，可选输出转换 ──
         format_obj = self.engine.supports_format(fmt)
         if format_obj:
             if in_converter or adapter:
@@ -430,7 +430,7 @@ class Translator:
                     self.on_warning("已将之前的输出转换器视为输入转换器")
             else:
                 if translated_format != format_obj:
-                    # 3a. 尝试反向转换回原格式（用户指定或自动发现）
+                    # 2a. 尝试反向转换回原格式（用户指定或自动发现）
                     out_conv_cls = self._find_out_converter(
                         format_obj, translated_format, out_converter
                     )
@@ -438,9 +438,9 @@ class Translator:
                         return out_conv_cls.convert(translated_content), format_obj
                 return translated_content, translated_format
 
-        # ── 2. 非原生格式：converter → adapter 降级链路 ──
+        # ── 3. 非原生格式：converter → adapter 降级链路 ──
         format_obj = None
-        # 2a. 用户指定了适配器 → 优先尝试
+        # 3a. 用户指定了适配器 → 优先尝试
         if adapter:
             adp_cls = self._find_adapter(fmt, adapter)
             if adp_cls:
@@ -449,11 +449,11 @@ class Translator:
                 )
                 return result, adp_cls.source
 
-        # 2b. 查找输入转换器（用户指定或自动发现）
+        # 3b. 查找输入转换器（用户指定或自动发现）
         in_conv_cls = self._find_in_converter(fmt, in_converter)
 
         if not in_conv_cls:
-            # 2c. 无转换器 → 尝试自动发现适配器
+            # 3c. 无转换器 → 尝试自动发现适配器
             adp_cls = self._find_adapter(fmt)
             if adp_cls:
                 result = self._translate_with_adapter(
@@ -461,17 +461,15 @@ class Translator:
                 )
                 return result, adp_cls.source
             if fmt == PLAIN_TEXT:
-                # 2d. 纯文本走文本翻译
+                # 3d. 纯文本走文本翻译
                 result = self.translate_texts(
                     [content.decode(detect_encoding(content))], src_lang, tgt_lang
                 )[0].encode("utf-8-sig")
                 return result, PLAIN_TEXT
-            # 2e. 彻底无法处理
-            raise UnsupportedFormatError.for_engine(
-                self.engine.name, fmt, self.engine.formats
-            )
+            # 3e. 彻底无法处理
+            raise UnsupportedFormatError(self.engine.name, fmt, self.engine.formats)
 
-        # 2f. 转换 → 翻译 → 反向转换
+        # 3f. 转换 → 翻译 → 反向转换
         converted_content = in_conv_cls.convert(content)
         translated_content, translated_format = await self.engine.translate_file(
             converted_content, src_lang, tgt_lang, in_conv_cls.target

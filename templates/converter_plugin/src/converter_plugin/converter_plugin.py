@@ -57,7 +57,7 @@ Format 类
 
 错误处理
 --------
-- `UnsupportedFormatError.for_engine(name, fmt, formats)`：格式不支持时抛出，第二个参数是用户传入的格式（str 或 Format），第三个是支持的格式集合（可选）
+- `UnsupportedFormatError(name, fmt, formats)`：格式不支持时抛出，第二个参数是用户传入的格式（str 或 Format），第三个是支持的格式集合（可选）
 
 示例
 ----

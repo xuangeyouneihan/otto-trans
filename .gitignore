@@ -7,5 +7,5 @@ wheels/
 *.egg-info
 .coverage
 
-# Virtual environments
+# Virtual environment
 .venv

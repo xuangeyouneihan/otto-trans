@@ -42,8 +42,8 @@
 
 错误处理
 --------
-- `UnsupportedFormatError.for_engine(name, fmt, formats)`：引擎不支持该格式时抛出，第二个参数是用户传入的格式（str 或 Format），第三个是本引擎支持的格式集合（可选）
-- `UnsupportedLanguageError.for_engine(name, src, tgt, src_set, tgt_set)`：语言不支持时抛出，后两个集合分别是支持的源语言和目标语言（传 `None` 表示不限）
+- `UnsupportedFormatError(name, fmt, formats)`：引擎不支持该格式时抛出，第二个参数是用户传入的格式（str 或 Format），第三个是本引擎支持的格式集合（可选）
+- `UnsupportedLanguageError(name, src, tgt, src_set, tgt_set)`：语言不支持时抛出，后两个集合分别是支持的源语言和目标语言（传 `None` 表示不限）
 - 通用引擎异常：自定义异常类（如 `EnginePluginError`）
 
 Format 类
@@ -120,7 +120,7 @@ class EnginePlugin(BaseTranslator):
         self, texts: list[str], src_lang: str, tgt_lang: str
     ) -> list[str]:
         if src_lang not in ("en", "zh") or tgt_lang not in ("en", "zh"):
-            raise UnsupportedLanguageError.for_engine(
+            raise UnsupportedLanguageError(
                 self.name,
                 src_lang,
                 tgt_lang,
@@ -135,7 +135,7 @@ class EnginePlugin(BaseTranslator):
         self, content: bytes, src_lang: str, tgt_lang: str, fmt: Format
     ) -> tuple[bytes, Format]:
         if not self.supports_format(fmt):
-            raise UnsupportedFormatError.for_engine(self.name, fmt, self.formats)
+            raise UnsupportedFormatError(self.name, fmt, self.formats)
 
         await self._upload(content, src_lang, tgt_lang, fmt)
         await self._poll()

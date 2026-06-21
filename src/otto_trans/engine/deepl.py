@@ -224,12 +224,12 @@ class DeepLTranslator(BaseTranslator):
                         tgt_languages,
                     ) = await self._fetch_supported_languages()
                 except Exception:
-                    raise UnsupportedLanguageError.for_engine(
+                    raise UnsupportedLanguageError(
                         f"{self.friendly_name}（{self.name}）",
                         src_lang,
                         tgt_lang,
                     )
-                raise UnsupportedLanguageError.for_engine(
+                raise UnsupportedLanguageError(
                     f"{self.friendly_name}（{self.name}）",
                     src_lang,
                     tgt_lang,
@@ -271,7 +271,7 @@ class DeepLTranslator(BaseTranslator):
         self, content: bytes, src_lang: str, tgt_lang: str, fmt: Format
     ) -> tuple[bytes, Format]:
         if fmt not in (self.formats or []):
-            raise UnsupportedFormatError.for_engine(self.name, fmt)
+            raise UnsupportedFormatError(self.name, fmt)
 
         src_lang, tgt_lang = self._normalize_lang(src_lang, tgt_lang)
         upload_result = await self._upload(content, src_lang, tgt_lang, fmt)
@@ -314,12 +314,12 @@ class DeepLTranslator(BaseTranslator):
                         tgt_languages,
                     ) = await self._fetch_supported_languages(fmt)
                 except Exception:
-                    raise UnsupportedLanguageError.for_engine(
+                    raise UnsupportedLanguageError(
                         f"{self.friendly_name}（{self.name}）",
                         src_lang,
                         tgt_lang,
                     )
-                raise UnsupportedLanguageError.for_engine(
+                raise UnsupportedLanguageError(
                     f"{self.friendly_name}（{self.name}）",
                     src_lang,
                     tgt_lang,
