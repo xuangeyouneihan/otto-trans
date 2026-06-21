@@ -22,5 +22,9 @@ jobs:
         uses: astral-sh/setup-uv@main
       - name: Build package
         run: uv build
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.whl
       - name: Publish to PyPI
         run: uv publish --token ${{ secrets.PYPI_TOKEN }}
