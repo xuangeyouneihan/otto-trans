@@ -30,7 +30,11 @@ class Cache:
         try:
             cursor.execute(
                 f"SELECT target FROM [{self._b64encode(engine)}] WHERE source = ? AND src_lang = ? AND tgt_lang = ?",
-                (self._b64encode(key), self._b64encode(src_lang), self._b64encode(tgt_lang)),
+                (
+                    self._b64encode(key),
+                    self._b64encode(src_lang),
+                    self._b64encode(tgt_lang),
+                ),
             )
         except sqlite3.OperationalError:
             return None  # 表不存在 = 无缓存
@@ -62,12 +66,13 @@ class Cache:
                 PRIMARY KEY (source, src_lang, tgt_lang)
             )
         """)
-        self._conn.commit()
 
-    def _b64encode(self, s: str) -> str:
+    @staticmethod
+    def _b64encode(s: str) -> str:
         return base64.b64encode(s.encode(encoding="utf-8")).decode(encoding="utf-8")
 
-    def _b64decode(self, s: str) -> str:
+    @staticmethod
+    def _b64decode(s: str) -> str:
         return base64.b64decode(s.encode(encoding="utf-8")).decode(encoding="utf-8")
 
     @classmethod

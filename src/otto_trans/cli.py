@@ -713,7 +713,7 @@ def _classify_paths(
     if out_only:
         if sys.stdin.isatty() and not texts:
             typer.echo(
-                "路径参数格式错误：仅输出路径必须与管道/文本输入同时使用", err=True
+                "路径参数格式错误：仅输出路径必须与管道 / 文本输入同时使用", err=True
             )
             raise typer.Exit(1)
         if texts:
@@ -723,7 +723,7 @@ def _classify_paths(
     if in_only:
         if not sys.stdin.isatty() or texts:
             typer.echo(
-                "路径参数格式错误：仅输入路径不能与管道/文本输入同时使用", err=True
+                "路径参数格式错误：仅输入路径不能与管道 / 文本输入同时使用", err=True
             )
             raise typer.Exit(1)
         both.append((in_only, sys.stdout))
@@ -892,7 +892,7 @@ def _reset_cache(value: bool):
             ) = _set_terminal_encodings()
 
         Cache.reset()
-        typer.echo(f"已重置位于 {Cache.db_path} 的缓存", err=True)
+        typer.echo(f"已重置 / 删除位于 {Cache.db_path} 的缓存", err=True)
 
         if _force_utf_8:
             _restore_terminal_encodings(
@@ -1012,7 +1012,7 @@ def main(
     reset_cache: bool = typer.Option(
         False,
         "--reset-cache",
-        help="重置缓存",
+        help="重置 / 删除缓存",
         show_default=False,
     ),
     version: bool = typer.Option(
@@ -1050,7 +1050,7 @@ def main(
 
     settings = None
     try:
-        settings = Settings.load()
+        settings = Settings()
     except Exception as e:
         if str(e):
             typer.echo(f"配置文件加载失败：{type(e).__name__}: {e}", err=True)

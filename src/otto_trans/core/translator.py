@@ -378,7 +378,7 @@ class Translator:
             (翻译后字节, 输出格式)
 
         Raises:
-            UnsupportedFormatError: 引擎不支持该格式且无法通过转换器/适配器处理
+            UnsupportedFormatError: 引擎不支持该格式且无法通过转换器 / 适配器处理
         """
         # ── 1. 解析 converter 字符串 ──
         in_converter: str | None = None

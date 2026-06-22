@@ -131,11 +131,11 @@ class DeepLTranslator(BaseTranslator):
         self,
         auth_key: str,
         paid: bool = False,
+        formality: str | None = None,
+        glossary_id: str | None = None,
         context: str | None = None,
         preserve_formatting: bool | None = None,
-        formality: str | None = None,
         model_type: str | None = None,
-        glossary_id: str | None = None,
         tag_handling: str | None = None,
         config_name: str | None = None,
         **kwargs,
@@ -145,8 +145,6 @@ class DeepLTranslator(BaseTranslator):
         super().__init__(config_name=config_name)
         self.__auth_key = auth_key
         self.paid = paid
-        self.context = context
-        self.preserve_formatting = preserve_formatting
         if formality and formality not in (
             "default",
             "more",
@@ -158,6 +156,9 @@ class DeepLTranslator(BaseTranslator):
                 f"formality 参数值无效：{formality}，必须是 default、more、less、prefer_more 或 prefer_less"
             )
         self.formality = formality
+        self.glossary_id = glossary_id
+        self.context = context
+        self.preserve_formatting = preserve_formatting
         if model_type and model_type not in (
             "quality_optimized",
             "latency_optimized",
@@ -167,7 +168,6 @@ class DeepLTranslator(BaseTranslator):
                 f"model_type 参数值无效：{model_type}，必须是 quality_optimized、latency_optimized 或 prefer_quality_optimized"
             )
         self.model_type = model_type
-        self.glossary_id = glossary_id
         if tag_handling is not None and tag_handling not in ("xml", "html"):
             raise ValueError(
                 f"tag_handling 参数值无效：{tag_handling}，必须是 xml 或 html"
@@ -224,11 +224,7 @@ class DeepLTranslator(BaseTranslator):
                         tgt_languages,
                     ) = await self._fetch_supported_languages()
                 except Exception:
-                    raise UnsupportedLanguageError(
-                        f"{self.friendly_name}（{self.name}）",
-                        src_lang,
-                        tgt_lang,
-                    )
+                    pass
                 raise UnsupportedLanguageError(
                     f"{self.friendly_name}（{self.name}）",
                     src_lang,
@@ -238,7 +234,7 @@ class DeepLTranslator(BaseTranslator):
                 ) from e
 
             raise DeepLAPIError(
-                f"DeepL API 返回错误: {response.status_code} {response.text}"
+                f"DeepL API 返回错误：{response.status_code} {response.text}"
             ) from e
         body = response.json()
         return [t["text"] for t in body["translations"]]
@@ -328,7 +324,7 @@ class DeepLTranslator(BaseTranslator):
                 ) from e
 
             raise DeepLAPIError(
-                f"DeepL API 文件上传失败: {response.status_code} {response.text}"
+                f"DeepL API 文件上传失败：{response.status_code} {response.text}"
             ) from e
 
         return response.json()
@@ -354,22 +350,22 @@ class DeepLTranslator(BaseTranslator):
                     continue  # 回到循环重新查询
                 if response.json().get("code", "") == "invalid_content_type":
                     raise DeepLAPIError(
-                        "DeepL API 轮询失败: Content-Type 不正确"
+                        "DeepL API 轮询失败：Content-Type 不正确"
                     ) from e
                 raise DeepLAPIError(
-                    f"DeepL API 轮询失败: {response.status_code} {response.text}"
+                    f"DeepL API 轮询失败：{response.status_code} {response.text}"
                 ) from e
             body = response.json()
             if body["document_id"] != document_id:
                 raise DeepLAPIError(
-                    f"DeepL API 轮询返回了错误的 document_id: {body['document_id']}，期望 {document_id}"
+                    f"DeepL API 轮询返回了错误的 document_id：{body['document_id']}，期望 {document_id}"
                 )
             match body["status"]:
                 case "done":
                     return
                 case "error":
                     raise DeepLAPIError(
-                        f"DeepL API 翻译失败: {body.get('error_message', '未知错误')}"
+                        f"DeepL API 翻译失败：{body.get('error_message', '未知错误')}"
                     )
             await asyncio.sleep(1)
 
@@ -388,7 +384,7 @@ class DeepLTranslator(BaseTranslator):
             response.raise_for_status()
         except httpx.HTTPError as e:
             raise DeepLAPIError(
-                f"DeepL API 文件下载失败: {response.status_code} {response.text}"
+                f"DeepL API 文件下载失败：{response.status_code} {response.text}"
             ) from e
         return response.content
 
@@ -435,7 +431,7 @@ class DeepLTranslator(BaseTranslator):
             response.raise_for_status()
         except httpx.HTTPError as e:
             raise DeepLAPIError(
-                f"DeepL API 获取支持语言失败: {response.status_code} {response.text}"
+                f"DeepL API 获取支持语言失败：{response.status_code} {response.text}"
             ) from e
         body = response.json()
         return (

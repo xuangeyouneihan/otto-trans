@@ -9,6 +9,9 @@ from ..utils.text import detect_encoding
 
 
 class Settings(BaseSettings):
+    _instance = None
+    _initialized = False
+
     model_config = {"extra": "allow"}  # 允许 YAML 有未声明的字段
 
     default_engine: str = ""
@@ -18,12 +21,18 @@ class Settings(BaseSettings):
 
     config_path: ClassVar[Path] = Path.home() / ".config" / "otto-trans" / "config.yaml"
 
-    @classmethod
-    def load(cls) -> "Settings":
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super().__new__(cls, *args, **kwargs)
+        return cls._instance
+
+    def __init__(self):
+        if self._initialized:
+            return
         config = (
             yaml.safe_load(
-                cls.config_path.read_text(
-                    encoding=detect_encoding(cls.config_path.read_bytes())
+                self.config_path.read_text(
+                    encoding=detect_encoding(self.config_path.read_bytes())
                 )
             )
             or {}
@@ -37,14 +46,20 @@ class Settings(BaseSettings):
                 f"default_engine 配置格式错误：冒号后不能有空格，"
                 f"请使用 {good_str} 而非 {bad_str}"
             )
-        settings = cls(**config)
-        settings.default_engine = settings.default_engine.strip()
-        settings.default_source = settings.default_source.lower().strip()
-        settings.default_target = settings.default_target.lower().strip()
-        return settings
+        super().__init__(**config)
+        self.default_engine = self.default_engine.strip()
+        self.default_source = self.default_source.lower().strip()
+        self.default_target = self.default_target.lower().strip()
+
+        self._initialized = True
 
     @classmethod
     def reset(cls) -> None:
+        if cls._instance is not None:
+            # 清空单例实例的属性，以便重新加载配置
+            cls._instance.__dict__.clear()
+            cls._initialized = False
+
         if cls.config_path.exists():
             cls.config_path.unlink()
         cls.config_path.parent.mkdir(parents=True, exist_ok=True)
@@ -96,3 +111,6 @@ class Settings(BaseSettings):
                     lines.append(f"      {opt_name}:")
 
         cls.config_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+        if cls._instance is not None:
+            cls._instance.__init__()  # 重新加载配置
