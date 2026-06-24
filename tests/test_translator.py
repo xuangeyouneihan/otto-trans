@@ -46,23 +46,25 @@ def test_init_openai_invalid_options():
 
     with pytest.raises(ValueError, match="未知参数"):
         Translator(
-            "openai:example",
+            "openai",
             {
                 "endpoint": "https://api.example.com/chat/completions",
                 "api_key": "350234",
                 "model": "model_name",
                 "auth_key": "350235",
+                "config_name": "example",
             },
         )
 
 
 def test_init_openai_valid_options():
     translator = Translator(
-        "openai:example",
+        "openai",
         {
             "endpoint": "https://api.example.com/chat/completions",
             "api_key": "350234",
             "model": "model_name",
+            "config_name": "example",
         },
     )
     assert translator.engine is not None, "Translator engine should be initialized"

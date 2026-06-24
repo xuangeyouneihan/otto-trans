@@ -122,8 +122,7 @@ class Translator:
         self.converters(on_warning=on_warning)
         self.adapters(on_warning=on_warning)
 
-        base_engine_name = engine.split(":", 1)[0] if ":" in engine else engine
-        engine_cls = self._engines.get(base_engine_name)
+        engine_cls = self._engines.get(engine)
         if not engine_cls:
             raise ValueError(f"未知的翻译引擎：{engine}")
 
@@ -204,6 +203,10 @@ class Translator:
             engine_results = self.engine.translate_texts(
                 [m[1] for m in misses], src_lang, tgt_lang
             )
+            if len(engine_results) != len(misses):
+                raise RuntimeError(
+                    f"翻译引擎 {self.engine.name} 返回的翻译结果数量与请求的文本数量不匹配：{len(engine_results)} != {len(misses)}"
+                )
             for (idx, text), result in zip(misses, engine_results):
                 results[idx] = result
                 self.cache.insert(text, result, self.engine.name, src_lang, tgt_lang)

@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" version="3.0.2" name="kg.us.xuan.otto_trans.core.TranslatorTest" time="0.175" tests="11" errors="0" skipped="0" failures="0">
+  <properties>
+    <property name="java.specification.version" value="25"/>
+    <property name="sun.cpu.isalist" value="amd64"/>
+    <property name="sun.jnu.encoding" value="GBK"/>
+    <property name="java.class.path" value="C:\Users\xuang\Documents\otto-trans\otto-trans-java\target\test-classes;C:\Users\xuang\Documents\otto-trans\otto-trans-java\target\classes;C:\Users\xuang\.m2\repository\org\xerial\sqlite-jdbc\3.53.2.0\sqlite-jdbc-3.53.2.0.jar;C:\Users\xuang\.m2\repository\com\google\code\gson\gson\2.10.1\gson-2.10.1.jar;C:\Users\xuang\.m2\repository\com\squareup\okhttp3\okhttp\4.12.0\okhttp-4.12.0.jar;C:\Users\xuang\.m2\repository\com\squareup\okio\okio\3.6.0\okio-3.6.0.jar;C:\Users\xuang\.m2\repository\com\squareup\okio\okio-jvm\3.6.0\okio-jvm-3.6.0.jar;C:\Users\xuang\.m2\repository\org\jetbrains\kotlin\kotlin-stdlib-common\1.9.10\kotlin-stdlib-common-1.9.10.jar;C:\Users\xuang\.m2\repository\org\jetbrains\kotlin\kotlin-stdlib-jdk8\1.8.21\kotlin-stdlib-jdk8-1.8.21.jar;C:\Users\xuang\.m2\repository\org\jetbrains\kotlin\kotlin-stdlib\1.8.21\kotlin-stdlib-1.8.21.jar;C:\Users\xuang\.m2\repository\org\jetbrains\annotations\13.0\annotations-13.0.jar;C:\Users\xuang\.m2\repository\org\jetbrains\kotlin\kotlin-stdlib-jdk7\1.8.21\kotlin-stdlib-jdk7-1.8.21.jar;C:\Users\xuang\.m2\repository\info\picocli\picocli\4.7.6\picocli-4.7.6.jar;C:\Users\xuang\.m2\repository\org\yaml\snakeyaml\2.6\snakeyaml-2.6.jar;C:\Users\xuang\.m2\repository\org\junit\jupiter\junit-jupiter\5.11.0\junit-jupiter-5.11.0.jar;C:\Users\xuang\.m2\repository\org\junit\jupiter\junit-jupiter-api\5.11.0\junit-jupiter-api-5.11.0.jar;C:\Users\xuang\.m2\repository\org\opentest4j\opentest4j\1.3.0\opentest4j-1.3.0.jar;C:\Users\xuang\.m2\repository\org\junit\platform\junit-platform-commons\1.11.0\junit-platform-commons-1.11.0.jar;C:\Users\xuang\.m2\repository\org\apiguardian\apiguardian-api\1.1.2\apiguardian-api-1.1.2.jar;C:\Users\xuang\.m2\repository\org\junit\jupiter\junit-jupiter-params\5.11.0\junit-jupiter-params-5.11.0.jar;C:\Users\xuang\.m2\repository\org\junit\jupiter\junit-jupiter-engine\5.11.0\junit-jupiter-engine-5.11.0.jar;C:\Users\xuang\.m2\repository\org\junit\platform\junit-platform-engine\1.11.0\junit-platform-engine-1.11.0.jar;C:\Users\xuang\.m2\repository\org\mockito\mockito-core\5.12.0\mockito-core-5.12.0.jar;C:\Users\xuang\.m2\repository\net\bytebuddy\byte-buddy\1.14.15\byte-buddy-1.14.15.jar;C:\Users\xuang\.m2\repository\net\bytebuddy\byte-buddy-agent\1.14.15\byte-buddy-agent-1.14.15.jar;C:\Users\xuang\.m2\repository\org\objenesis\objenesis\3.3\objenesis-3.3.jar;"/>
+    <property name="java.vm.vendor" value="Oracle Corporation"/>
+    <property name="sun.arch.data.model" value="64"/>
+    <property name="user.variant" value=""/>
+    <property name="java.vendor.url" value="https://java.oracle.com/"/>
+    <property name="user.timezone" value="Asia/Shanghai"/>
+    <property name="os.name" value="Windows 10"/>
+    <property name="java.vm.specification.version" value="25"/>
+    <property name="sun.java.launcher" value="SUN_STANDARD"/>
+    <property name="user.country" value="CN"/>
+    <property name="sun.boot.library.path" value="C:\Program Files\Java\latest\jdk-25\bin"/>
+    <property name="sun.java.command" value="C:\Users\xuang\AppData\Local\Temp\surefire13131699909305493269\surefirebooter-20260625014832640_3.jar C:\Users\xuang\AppData\Local\Temp\surefire13131699909305493269 2026-06-25T01-48-32_531-jvmRun1 surefire-20260625014832640_1tmp surefire_0-20260625014832640_2tmp"/>
+    <property name="jdk.debug" value="release"/>
+    <property name="surefire.test.class.path" value="C:\Users\xuang\Documents\otto-trans\otto-trans-java\target\test-classes;C:\Users\xuang\Documents\otto-trans\otto-trans-java\target\classes;C:\Users\xuang\.m2\repository\org\xerial\sqlite-jdbc\3.53.2.0\sqlite-jdbc-3.53.2.0.jar;C:\Users\xuang\.m2\repository\com\google\code\gson\gson\2.10.1\gson-2.10.1.jar;C:\Users\xuang\.m2\repository\com\squareup\okhttp3\okhttp\4.12.0\okhttp-4.12.0.jar;C:\Users\xuang\.m2\repository\com\squareup\okio\okio\3.6.0\okio-3.6.0.jar;C:\Users\xuang\.m2\repository\com\squareup\okio\okio-jvm\3.6.0\okio-jvm-3.6.0.jar;C:\Users\xuang\.m2\repository\org\jetbrains\kotlin\kotlin-stdlib-common\1.9.10\kotlin-stdlib-common-1.9.10.jar;C:\Users\xuang\.m2\repository\org\jetbrains\kotlin\kotlin-stdlib-jdk8\1.8.21\kotlin-stdlib-jdk8-1.8.21.jar;C:\Users\xuang\.m2\repository\org\jetbrains\kotlin\kotlin-stdlib\1.8.21\kotlin-stdlib-1.8.21.jar;C:\Users\xuang\.m2\repository\org\jetbrains\annotations\13.0\annotations-13.0.jar;C:\Users\xuang\.m2\repository\org\jetbrains\kotlin\kotlin-stdlib-jdk7\1.8.21\kotlin-stdlib-jdk7-1.8.21.jar;C:\Users\xuang\.m2\repository\info\picocli\picocli\4.7.6\picocli-4.7.6.jar;C:\Users\xuang\.m2\repository\org\yaml\snakeyaml\2.6\snakeyaml-2.6.jar;C:\Users\xuang\.m2\repository\org\junit\jupiter\junit-jupiter\5.11.0\junit-jupiter-5.11.0.jar;C:\Users\xuang\.m2\repository\org\junit\jupiter\junit-jupiter-api\5.11.0\junit-jupiter-api-5.11.0.jar;C:\Users\xuang\.m2\repository\org\opentest4j\opentest4j\1.3.0\opentest4j-1.3.0.jar;C:\Users\xuang\.m2\repository\org\junit\platform\junit-platform-commons\1.11.0\junit-platform-commons-1.11.0.jar;C:\Users\xuang\.m2\repository\org\apiguardian\apiguardian-api\1.1.2\apiguardian-api-1.1.2.jar;C:\Users\xuang\.m2\repository\org\junit\jupiter\junit-jupiter-params\5.11.0\junit-jupiter-params-5.11.0.jar;C:\Users\xuang\.m2\repository\org\junit\jupiter\junit-jupiter-engine\5.11.0\junit-jupiter-engine-5.11.0.jar;C:\Users\xuang\.m2\repository\org\junit\platform\junit-platform-engine\1.11.0\junit-platform-engine-1.11.0.jar;C:\Users\xuang\.m2\repository\org\mockito\mockito-core\5.12.0\mockito-core-5.12.0.jar;C:\Users\xuang\.m2\repository\net\bytebuddy\byte-buddy\1.14.15\byte-buddy-1.14.15.jar;C:\Users\xuang\.m2\repository\net\bytebuddy\byte-buddy-agent\1.14.15\byte-buddy-agent-1.14.15.jar;C:\Users\xuang\.m2\repository\org\objenesis\objenesis\3.3\objenesis-3.3.jar;"/>
+    <property name="sun.cpu.endian" value="little"/>
+    <property name="user.home" value="C:\Users\xuang"/>
+    <property name="user.language" value="zh"/>
+    <property name="java.specification.vendor" value="Oracle Corporation"/>
+    <property name="java.version.date" value="2026-04-21"/>
+    <property name="java.home" value="C:\Program Files\Java\latest\jdk-25"/>
+    <property name="file.separator" value="\"/>
+    <property name="basedir" value="C:\Users\xuang\Documents\otto-trans\otto-trans-java"/>
+    <property name="java.vm.compressedOopsMode" value="Zero based"/>
+    <property name="line.separator" value="&#10;"/>
+    <property name="java.vm.specification.vendor" value="Oracle Corporation"/>
+    <property name="java.specification.name" value="Java Platform API Specification"/>
+    <property name="surefire.real.class.path" value="C:\Users\xuang\AppData\Local\Temp\surefire13131699909305493269\surefirebooter-20260625014832640_3.jar"/>
+    <property name="user.script" value=""/>
+    <property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers"/>
+    <property name="java.runtime.version" value="25.0.3+9-LTS-195"/>
+    <property name="user.name" value="xuang"/>
+    <property name="stdout.encoding" value="GBK"/>
+    <property name="path.separator" value=";"/>
+    <property name="os.version" value="10.0"/>
+    <property name="java.runtime.name" value="Java(TM) SE Runtime Environment"/>
+    <property name="file.encoding" value="UTF-8"/>
+    <property name="java.vm.name" value="Java HotSpot(TM) 64-Bit Server VM"/>
+    <property name="localRepository" value="C:\Users\xuang\.m2\repository"/>
+    <property name="java.vendor.url.bug" value="https://bugreport.java.com/bugreport/"/>
+    <property name="java.io.tmpdir" value="C:\Users\xuang\AppData\Local\Temp\"/>
+    <property name="java.version" value="25.0.3"/>
+    <property name="user.dir" value="C:\Users\xuang\Documents\otto-trans\otto-trans-java"/>
+    <property name="os.arch" value="amd64"/>
+    <property name="java.vm.specification.name" value="Java Virtual Machine Specification"/>
+    <property name="sun.os.patch.level" value=""/>
+    <property name="native.encoding" value="GBK"/>
+    <property name="java.library.path" value="C:\Program Files\Java\latest\jdk-25\bin;C:\Windows\Sun\Java\bin;C:\Windows\system32;C:\Windows;C:\Users\xuang\Documents\otto-trans\.venv/Scripts;C:\Program Files\PowerShell\7;c:\Users\xuang\AppData\Roaming\Code\User\globalStorage\github.copilot-chat\debugCommand;c:\Users\xuang\AppData\Roaming\Code\User\globalStorage\github.copilot-chat\copilotCli;C:\Program Files\Python314\Scripts\;C:\Program Files\Python314\;C:\ProgramData\scoop\persist\uv\tools\shims;C:\ProgramData\scoop\persist\uv\python\shims;C:\ProgramData\scoop\apps\mingw-winlibs\current\bin;C:\ProgramData\scoop\apps\maven\current\bin;C:\Program Files\Common Files\Oracle\Java\javapath;C:\Program Files (x86)\Common Files\Oracle\Java\java8path;C:\Program Files (x86)\Common Files\Oracle\Java\javapath;C:\ProgramData\scoop\shims;C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\Windows\System32\OpenSSH\;C:\Program Files\dotnet\;C:\Program Files\Microsoft VS Code\bin;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\gsudo\Current;C:\Program Files (x86)\Pulse Secure\VC142.CRT\X64\;C:\Program Files (x86)\Pulse Secure\VC142.CRT\X86\;C:\Program Files (x86)\Common Files\Pulse Secure\TNC Client Plugin\;C:\Program Files\KeePassXC\;C:\Program Files\Git\cmd;C:\Program Files\PowerShell\7\;C:\Program Files\WinGet\Links;C:\Program Files\PowerToys\DSCModules\;C:\Users\xuang\scoop\scripts;C:\Users\xuang\scoop\shims;C:\Users\xuang\AppData\Local\Microsoft\WindowsApps;;c:\Users\xuang\.vscode\extensions\ms-python.debugpy-2026.7.11751011-win32-x64\bundled\scripts\noConfigScriptsc:\Users\xuang\.vscode\extensions\vscjava.vscode-java-debug-0.59.0\bundled\scripts\noConfigScripts;."/>
+    <property name="java.vm.info" value="mixed mode, sharing"/>
+    <property name="stderr.encoding" value="GBK"/>
+    <property name="java.vendor" value="Oracle Corporation"/>
+    <property name="java.vm.version" value="25.0.3+9-LTS-195"/>
+    <property name="stdin.encoding" value="GBK"/>
+    <property name="sun.io.unicode.encoding" value="UnicodeLittle"/>
+    <property name="java.class.version" value="69.0"/>
+  </properties>
+  <testcase name="testBooleanActualBooleanIsAccepted" classname="kg.us.xuan.otto_trans.core.TranslatorTest" time="0.157"/>
+  <testcase name="testBooleanTrueStringIsAccepted" classname="kg.us.xuan.otto_trans.core.TranslatorTest" time="0.002"/>
+  <testcase name="testNullOnWarningUsesDefault" classname="kg.us.xuan.otto_trans.core.TranslatorTest" time="0.002"/>
+  <testcase name="testNullConfigNameYieldsPlainEngineName" classname="kg.us.xuan.otto_trans.core.TranslatorTest" time="0.001"/>
+  <testcase name="testBooleanInvalidStringThrows" classname="kg.us.xuan.otto_trans.core.TranslatorTest" time="0.001"/>
+  <testcase name="testBooleanYesStringIsAccepted" classname="kg.us.xuan.otto_trans.core.TranslatorTest" time="0.001"/>
+  <testcase name="testValidEngineDoesNotThrow" classname="kg.us.xuan.otto_trans.core.TranslatorTest" time="0.001"/>
+  <testcase name="testNullRequiredOptionThrows" classname="kg.us.xuan.otto_trans.core.TranslatorTest" time="0.001"/>
+  <testcase name="testUnknownEngineThrows" classname="kg.us.xuan.otto_trans.core.TranslatorTest" time="0.001"/>
+  <testcase name="testConfigNameIsPassedToEngine" classname="kg.us.xuan.otto_trans.core.TranslatorTest" time="0.002"/>
+  <testcase name="testMissingRequiredOptionThrows" classname="kg.us.xuan.otto_trans.core.TranslatorTest" time="0.0"/>
+</testsuite>

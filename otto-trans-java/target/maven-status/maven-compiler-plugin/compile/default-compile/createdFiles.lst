@@ -1,0 +1,11 @@
+kg\us\xuan\otto_trans\engine\DeepLAPIError.class
+kg\us\xuan\otto_trans\engine\DeepLTranslator.class
+kg\us\xuan\otto_trans\core\Cache.class
+kg\us\xuan\otto_trans\engine\OptionMeta.class
+kg\us\xuan\otto_trans\engine\LanguagePair.class
+kg\us\xuan\otto_trans\engine\BaseTranslator.class
+kg\us\xuan\otto_trans\core\Translator.class
+kg\us\xuan\otto_trans\engine\UnsupportedLanguageError.class
+kg\us\xuan\otto_trans\config\Settings.class
+kg\us\xuan\otto_trans\Main.class
+kg\us\xuan\otto_trans\engine\DeepLTranslator$1.class

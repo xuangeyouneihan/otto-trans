@@ -1075,6 +1075,9 @@ def main(
             err=True,
         )
         raise typer.Exit(1)
+    engine_name = engine.split(":", 1)
+    base_name = engine_name[0]
+    config_name = engine_name[1] if len(engine_name) > 1 else None
 
     # 纯文本格式等同于不指定格式
     if fmt == PLAIN_TEXT:
@@ -1117,27 +1120,31 @@ def main(
     if jobs > 0 and not fmt:
         typer.echo("并发参数（-j / --jobs）仅在文件模式下生效", err=True)
 
-    cli_opts = {k: v for k, v in (opt.split("=", 1) for opt in options)}
+    cli_opts = {k: v for k, v in (opt.split("=", 1) for opt in options if "=" in opt)}
 
-    base_opts = settings.engines.get(engine.split(":")[0], {})
-    config = engine.split(":", 1)[1] if ":" in engine else None
-    if config:
+    base_opts = settings.engines.get(base_name, {})
+    if config_name:
         # 用户指定配置时取对应配置
-        base_opts = base_opts.get(config, {}) if isinstance(base_opts, dict) else {}
-        base_opts["config_name"] = config
+        base_opts = base_opts.get(config_name, {}) if isinstance(base_opts, dict) else {}
+        base_opts["config_name"] = config_name
     elif isinstance(base_opts, dict):
         # 用户未指定配置时若有嵌套配置，取第一个非空配置
         configs = {k: v for k, v in base_opts.items() if isinstance(v, dict) and v}
         if configs:
-            config = next(iter(configs.keys()))
-            base_opts = base_opts[config]
-            base_opts["config_name"] = config
+            config_name = next(iter(configs.keys()))
+            base_opts = base_opts[config_name]
+            base_opts["config_name"] = config_name
 
     engine_opts = {**base_opts, **cli_opts}
     sticky_footer = _StickyFooter()
 
+    translator = None
     try:
-        translator = Translator(engine, engine_opts, on_warning=sticky_footer)
+        translator = Translator(
+            base_name,
+            engine_opts,
+            on_warning=sticky_footer,
+        )
     except (ValueError, TypeError) as e:
         if str(e):
             typer.echo(f"配置错误：{type(e).__name__}: {e}", err=True)
