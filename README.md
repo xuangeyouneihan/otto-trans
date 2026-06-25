@@ -258,7 +258,7 @@ my_engine = "my_package:MyEngine"
 otto-trans/
 ├── cli.py                   Typer CLI 入口
 ├── config/
-│   └── settings.py          配置管理（Pydantic + YAML，动态生成默认配置）
+│   └── settings.py          配置管理（YAML + 单例模式，动态生成默认配置）
 ├── adapter/
 │   ├── base.py              适配器抽象基类（Segment 数据类）
 │   └── srt.py               SRT 字幕适配器
@@ -313,7 +313,7 @@ uv run otto -t zh-Hans hello
 
 ## 测试
 
-78 个测试覆盖：缓存 CRUD、引擎初始化校验、语言代码归一化、签名构造、HTTP 请求验证、翻译编排逻辑、格式转换器、字幕适配器、CLI 路径解析、格式比较、粘性进度条。
+90 个测试覆盖：缓存 CRUD、配置管理、引擎初始化校验、语言代码归一化、签名构造、HTTP 请求验证、翻译编排逻辑、格式转换器、字幕适配器、CLI 路径解析、格式比较、粘性进度条。
 
 ```bash
 pytest          # 全部测试
@@ -341,7 +341,6 @@ pytest -k cache # 只跑缓存相关测试
 | [httpx](https://github.com/encode/httpx)                           | BSD-3-Clause | HTTP 客户端      |
 | [markdownify](https://github.com/matthewwithanm/markdownify)       | MIT          | HTML → Markdown |
 | [mistune](https://github.com/lepture/mistune)                      | BSD-3-Clause | Markdown → HTML |
-| [pydantic-settings](https://github.com/pydantic/pydantic-settings) | MIT          | 配置管理         |
 | [PyYAML](https://github.com/yaml/pyyaml)                           | MIT          | YAML 解析        |
 | [typer](https://github.com/fastapi/typer)                          | MIT          | CLI 框架         |
 

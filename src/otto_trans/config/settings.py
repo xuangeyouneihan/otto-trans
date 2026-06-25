@@ -1,23 +1,15 @@
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import ClassVar
 
 import yaml
-from pydantic_settings import BaseSettings
 
 from ..core.translator import Translator
 from ..utils.text import detect_encoding
 
 
-class Settings(BaseSettings):
+class Settings:
     _instance = None
     _initialized = False
-
-    model_config = {"extra": "allow"}  # 允许 YAML 有未声明的字段
-
-    default_engine: str = ""
-    default_source: str = "auto"
-    default_target: str = ""
-    engines: dict[str, Any] = {}
 
     config_path: ClassVar[Path] = Path.home() / ".config" / "otto-trans" / "config.yaml"
 
@@ -46,10 +38,10 @@ class Settings(BaseSettings):
                 f"default_engine 配置格式错误：冒号后不能有空格，"
                 f"请使用 {good_str} 而非 {bad_str}"
             )
-        super().__init__(**config)
-        self.default_engine = self.default_engine.strip()
-        self.default_source = self.default_source.lower().strip()
-        self.default_target = self.default_target.lower().strip()
+        self.default_engine = str(config.get("default_engine", "")).strip()
+        self.default_source = str(config.get("default_source", "auto")).lower().strip()
+        self.default_target = str(config.get("default_target", "")).lower().strip()
+        self.engines = dict(config.get("engines", {}))
 
         self._initialized = True
 
