@@ -1,4 +1,3 @@
-from .base import Segment, BaseAdapter
-from .srt import SRTAdapter
+from .base import BaseAdapter, Segment
 
-__all__ = ["Segment", "BaseAdapter", "SRTAdapter"]
+__all__ = ["Segment", "BaseAdapter"]

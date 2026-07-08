@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 
 import httpx
 import typer
+import winuvloop
 
 from .config.settings import Settings
 from .core.cache import Cache
@@ -298,9 +299,16 @@ def _build_help_epilog() -> str:
     return "\n".join(lines)
 
 
+class _LazyEpilog:
+    """惰性求值 epilog，避免 import 时加载所有引擎模块。"""
+
+    def __str__(self) -> str:
+        return _build_help_epilog()
+
+
 app = typer.Typer(
     context_settings={"help_option_names": ["-h", "-?", "--help"]},
-    epilog=_build_help_epilog(),
+    epilog=_LazyEpilog(),  # type: ignore[arg-type]
     add_completion=False,
 )
 
@@ -1044,6 +1052,8 @@ def main(
             sys_stderr_encoding,
         ) = _set_terminal_encodings()
 
+    winuvloop.install()
+
     if not Settings.config_path.exists():
         Settings.reset()
         typer.echo(f"配置文件已生成在 {Settings.config_path}", err=True)
@@ -1125,7 +1135,9 @@ def main(
     base_opts = settings.engines.get(base_name, {})
     if config_name:
         # 用户指定配置时取对应配置
-        base_opts = base_opts.get(config_name, {}) if isinstance(base_opts, dict) else {}
+        base_opts = (
+            base_opts.get(config_name, {}) if isinstance(base_opts, dict) else {}
+        )
         base_opts["config_name"] = config_name
     elif isinstance(base_opts, dict):
         # 用户未指定配置时若有嵌套配置，取第一个非空配置

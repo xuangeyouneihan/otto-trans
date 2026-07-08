@@ -17,10 +17,11 @@ dependencies = [
     "mistune>=3.2.1",
     "pyyaml>=6.0.3",
     "typer>=0.25.1",
+    "winuvloop>=0.2.4",
 ]
 
 [project.scripts]
-otto = "otto_trans.cli:app"
+otto = "otto_trans:app"
 
 [build-system]
 requires = ["hatchling", "hatch-vcs"]
